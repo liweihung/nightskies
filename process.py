@@ -38,350 +38,321 @@
 #	Li-Wei Hung -- Cleaned, modified, and changed some processing methods 
 #
 #-----------------------------------------------------------------------------#
-print ' '
-print '--------------------------------------------------------------'
-print ' '
-print '        NPS NIGHT SKIES PROGRAM RAW IMAGE PROCESSING'
-print ' '
-print '--------------------------------------------------------------'
 
-print ' '
-#-----------------------------------------------------------------------------#
-
-#Standard libraries
-import matplotlib.pyplot as plt
-#import multiprocessing
-import numpy as n
-import os
-import pdb
-import time
-#from astropy.io import fits
-from datetime import datetime as Dtime
-
-#-----------------------------------------------------------------------------#
 
 ##########################  Definitions  ######################################
-def loghistory(string):
+def logm(m,string):
     '''To log the processing history and print status on the screen'''
     if type(string) is list:
         for s in string:
-            history.write(s+'\n')
+            m.append(s+'\n')
             print s
     else:
-        history.write(string+'\n')
+        m.append(string+'\n')
         print string    
 
+
+def loghistory(message):
+    '''To log the processing history and print status on the screen'''
+    [history.write(line) for line in message]
+    
 
 def log_inputs(p):
     '''starting the history file and log the input files used'''
     print 'Recording the reduction process in: '
     print filepath.calibdata+dnight+'/processlog.txt'
     print ' '
-    loghistory('%s processed on %s by %s' %(p[0],str(Dtime.now())[:19],p[6]))
-    loghistory('')
-    loghistory('Input files:')
-    loghistory('Reducing V-band data? ' + p[1])
-    loghistory('Reducing B-band data? ' + p[2])
-    loghistory('vflat = ' + p[3])
-    loghistory('bflat = ' + p[4])
-    loghistory('curve = ' + p[5])
-    loghistory('')
-    loghistory('____________________ Processing history: _____________________')
-    loghistory('')
+    m = []
+    logm(m,'%s processed on %s by %s' %(p[0],str(Dtime.now())[:19],p[6]))
+    logm(m,'')
+    logm(m,'Input files:')
+    logm(m,'Reducing V-band data? ' + p[1])
+    logm(m,'Reducing B-band data? ' + p[2])
+    logm(m,'vflat = ' + p[3])
+    logm(m,'bflat = ' + p[4])
+    logm(m,'curve = ' + p[5])
+    logm(m,'')
+    logm(m,'____________________ Processing history: _____________________')
+    logm(m,'')
+    loghistory(m)
    
 
-def update_progressbar(x,y,t):
+def update_progressbar(x,y,t=0):
     '''update the progress bar plot'''
-    if t < 1: texty = '%.1f' %t
-    else: texty = '%d' %round(t)
-    if t < 6: c = 'k'
-    else: c = 'w'
-    barax.pcolor([x,x+1], [y+5,y+6], [[t],], cmap='Greens', vmin=0, vmax=10)
-    barax.text(x+0.5, y+5.5, texty, color=c, 
-               horizontalalignment='center',
-               verticalalignment='center', 
-               size='medium')
-    plt.pause(0.05)  #draw the new data and run the GUI's event loop
-    Z[y+5,x] = t   #recording the time in a master array
-
-
-def timing_function(some_function):
-    '''Outputs the time a function takes to execute.'''
-    def wrapper(*args, **kwargs):
-        t1 = time.time()
-        j = function_number[some_function.__name__]
-        barax.pcolor([j,j+1], [i+5,i+6], [[4],], cmap='gray', vmin=0, vmax=5)
-        plt.pause(0.05)
-        some_function(*args, **kwargs)
-        t2 = time.time()
-        dt = round((t2-t1)/60,1) #minute
-        update_progressbar(j,i,dt)
-        loghistory('Time it took to run this function: %s min \n' %str(dt))
-    return wrapper
+    if t == 0:          #gray out for the in-progress status 
+        barax.pcolor([x+4,x+5],[y+5,y+6],[[4],],cmap='gray',vmin=0,vmax=5)
+    else:               #update for the completed status
+        t/=60           #[min]
+        if t < 1: texty = '%.1f' %t
+        else: texty = '%d' %round(t)
+        if t < 6: c = 'k'
+        else: c = 'w'
+        Z[y+5,x] = t    #record the time [min] in a master array
+        barax.pcolor([x+4,x+5],[y+5,y+6],[[t],],cmap='Greens',vmin=0,vmax=10)
+        barax.text(x+4.5, y+5.5, texty, color=c, horizontalalignment='center',
+                   verticalalignment='center', size='medium')
+    plt.pause(0.05)     #draw the new data and run the GUI's event loop
     
-@timing_function    
+
 def reduce_images(*args):
     '''Basic image reduction'''
-    loghistory('--------------------------------------------------------------')
+    update_progressbar(0,i)
+    t1 = time.time()
+    print 'Reducing images... '
+    import reduce as R
     if 'V' in args[2]:
-        #V-band Basic image reduction
-        loghistory('Calibrating V-band images ('+R.__name__+'.reducev)')
         R.reducev(args[0],args[1],args[2]['V'],args[3])
-        loghistory('Finished calibrating images in V-band successfully.')
-        loghistory('')
     if 'B' in args[2]:
-        #B-band Basic image reduction
-        loghistory('Calibrating B-band images ('+R.__name__+'.reduceb)')
         R.reduceb(args[0],args[1],args[2]['B'],args[3])
-        loghistory('Finished calibrating images in B-band successfully.')
-        loghistory('')
-    
+    t2 = time.time()
+    update_progressbar(0,i,t2-t1)
 
-@timing_function  
+
 def register_coord(*args):
     '''Registering coordinates of each image by matching up star positions'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Registering the image coordinates (%s.matchstars)' %RE.__name__)
-    loghistory('')
+    update_progressbar(1,i)
+    t1 = time.time()
+    m = ['Images are normally registered using full frames.','',]
+    import register as RE
     for filter in args[2]:
-        loghistory('%s band' %filter)
-        arg = list(args)
-        arg[2] = filter
-        cropped_fn, failed_fn = RE.matchstars(*arg)
-        a = 'Images are registered using full frames unless noted otherwise.'
-        b = 'These images are registered using the central 200x200 pixels only:'
-        loghistory([a,'',b])
-        loghistory(cropped_fn)
-        loghistory('')
-        loghistory('The following images are failed to be registered:')
-        loghistory(failed_fn)
-        loghistory('')
+        cropped_fn, failed_fn = RE.matchstars(args[0],args[1],filter)
+        logm(m,'These %s images were registered using central 200 pix:'%filter)
+        logm(m,cropped_fn)
+        logm(m,'')
+        logm(m,'These %s images failed to be registered:'%filter)
+        logm(m,failed_fn)
+        logm(m,'')
+    loghistory(m)
+    t2 = time.time()
+    update_progressbar(1,i,t2-t1)
 
 
-@timing_function
-def calculate_pointing_err(*args):
+def pointing_error(*args):
     '''Calculating the pointing error'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Calculating the pointing error ( %s.pointing_err)' \
-                %pointing.__name__)
-    loghistory('')
-    pointing.pointing_err(*args)
-    loghistory('Output file pointerr.txt')
-    loghistory('')
+    t1 = time.time()
+    import pointing
+    pointing.pointing_err(*args[:-1])
+    t2 = time.time()
+    args[-1].put(t2-t1)
 
-    
-@timing_function
-def fit_zeropoint(*args, **kwargs):
+
+def fit_zeropoint(*args):
     '''Fitting for the extinction coefficient and zeropoint'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Fitting for extinction and zeropoint (%s.extinction)' 
-               %EX.__name__)
-    loghistory('')
+    t1 = time.time()
+    m = []
+    import extinction as EX
     for filter in args[2]:
-        loghistory('%s band' %filter)
-        arg = list(args)
+        arg = list(args[:-1])
         arg[2] = filter
-        nstar, bestfit_file = EX.extinction(*arg, **kwargs)
+        nstar, bestfit_file = EX.extinction(*arg)
         bestfitp = list(n.loadtxt(bestfit_file, dtype=str, comments='', 
                         delimiter='!'))
-        loghistory('The best fit parameters are: ')
-        loghistory(bestfitp)
-        loghistory('')
+        logm(m,'%s-band best fit zeropoint and extinction: ' %filter)
+        logm(m, bestfitp)
+        logm(m, '\n')        
+    t2 = time.time()
+    args[-1].put(t2-t1)
+    args[-1].put(m)
 
 
-@timing_function
-def compute_coord(*args):
-    '''Computig the galactic and ecliptic coordinates of the images'''
-    loghistory('--------------------------------------------------------------')
-    a = 'Computing galactic and ecliptic coordinates'
-    b = '(%s.galactic_ecliptic_coords)' %(CO.__name__)
-    loghistory(a+b)
-    loghistory('')
-    CO.galactic_ecliptic_coords(*args)
-    loghistory('Output file coordinate_#.txt')
-    loghistory('')
-
-
-@timing_function
 def apply_filter(*args):
     '''Apply ~1 degree (in diameter) median filter to the images'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Applying the median filter to images (%s.filter)' %MF.__name__)
-    loghistory('')
+    t1 = time.time()
+    import medianfilter
     for filter in args[2]:
-        loghistory('%s band' %filter)
-        arg = list(args)
-        arg[2] = filter
-        MF.filter(*arg)
-        loghistory('Output median filtered images tiff/median_*.tif')
-        loghistory('')
+        print 'Applying median filter to %s-band images' %filter
+        medianfilter.filter(args[0],args[1],filter)
+    t2 = time.time()
+    args[-1].put(t2-t1)
 
 
-@timing_function
+def compute_coord(*args):
+    '''Computig the galactic and ecliptic coordinates of the images'''
+    t1 = time.time()
+    import coordinates as CO
+    CO.galactic_ecliptic_coords(*args[:-1])
+    t2 = time.time()
+    args[-1].put(t2-t1)
+
+
 def mosaic_galactic(*args):
     '''Creates the mosaic of the galactic model'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Creating the mosaic of the galactic model (%s.mosaic)' 
-               %(galactic.__name__))
-    loghistory('')
-    galactic.mosaic(*args)
-    loghistory('Output galactic mosaic files Griddata/dnight/galtopmags%s.lyr')
-    loghistory('')
+    t1 = time.time()
+    import galactic
+    print 'Creating the mosaic of the galactic model'
+    galactic.mosaic(*args[:-1])
+    t2 = time.time()
+    args[-1].put(t2-t1)
 
 
-@timing_function
 def mosaic_zodiacal(*args):
     '''Creates the mosaic of the zodiacal model'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Creating the mosaic of the zodiacal model (%s.mosaic)' 
-               %(zodiacal.__name__))
-    loghistory('')
-    zodiacal.mosaic(*args)
-    loghistory('Output zodiacal mosaic files Griddata/dnight/zodtopmags%s.lyr')
-    loghistory('')
+    t1 = time.time()
+    import zodiacal
+    print 'Creating the mosaic of the zodiacal model' 
+    zodiacal.mosaic(*args[:-1])
+    t2 = time.time()
+    args[-1].put(t2-t1)
 
 
-@timing_function  
+def mosaic_full(*args):
+    '''Creates the mosaic from the full-resolution data'''
+    t1 = time.time()
+    import fullmosaic
+    for filter in args[2]:
+        print 'Creating the mosaic from full-resolution %s-band images' %filter
+        fullmosaic.mosaic(args[0],args[1],filter)
+    t2 = time.time()
+    args[-1].put(t2-t1)
+
+        
 def mosaic_median(*args):
     '''Creates the mosaic from the median-filtered data'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Creating the mosaic from median-filtered images (%s.mosaic)' 
-               %medianmosaic.__name__)
-    loghistory('')
+    t1 = time.time()
+    import medianmosaic
     for filter in args[2]:
-        loghistory('%s-band' %filter)
-        arg = list(args)
-        arg[2] = filter
-        medianmosaic.mosaic(*arg)
-        a = 'Griddata/dnight/skybrightmags%s.lyr'
-        loghistory('Output median-filtered data mosaic files in' + a)
-        loghistory('')
-
-
-@timing_function
-def mosaic_fullres(*args):
-    '''Creates the mosaic from the full-resolution data'''
-    loghistory('--------------------------------------------------------------')
-    loghistory('Creating the mosaic from full-resolution images (%s.mosaic)' \
-               %fullmosaic.__name__)
-    loghistory('')
-    for filter in args[2]:
-        loghistory('%s-band' %filter)
-        arg = list(args)
-        arg[2] = filter
-        fullmosaic.mosaic(*arg)
-        a = 'Griddata/dnight/skytopomags%s.lyr'
-        loghistory('Output full-resolution mosaic layer files' + a)
-        loghistory('')
+        print 'Creating the mosaic from median-filtered %s-band images' %filter
+        medianmosaic.mosaic(args[0],args[1],filter)
+    t2 = time.time()
+    args[-1].put(t2-t1)
     
 
-function_number = {'reduce_images':4, 
-                   'register_coord':5, 
-                   'calculate_pointing_err':6,
-                   'fit_zeropoint':7,
-                   'compute_coord':8,
-                   'apply_filter':9,
-                   'mosaic_galactic':10,
-                   'mosaic_zodiacal':11,
-                   'mosaic_median':12,
-                   'mosaic_fullres':13}
+import time
+import numpy as n
+
+if __name__ == '__main__':
+    t1 = time.time()
+    #-----------------------------------------------------------------------------#    
+    print ' '
+    print '--------------------------------------------------------------'
+    print ' '
+    print '        NPS NIGHT SKIES PROGRAM RAW IMAGE PROCESSING'
+    print ' '
+    print '--------------------------------------------------------------'
+    print ' '
     
-#------------ Read in the processing list and initialize ---------------------#
-#Local sources
-import filepath
-import progressbars
-
-#Read in the processing dataset list and the calibration file names 
-filelist = n.loadtxt(filepath.processlist+'filelist.txt', dtype=str, ndmin=2)
-Dataset, V_band, B_band, Flat_V, Flat_B, Curve, Processor = filelist.T
-
-#Check the calibration files exist    
-for i in range(len(filelist)):
-    if V_band == 'Yes':
-        open(filepath.flats+Flat_V[i])
-    if B_band == 'Yes':
-        open(filepath.flats+Flat_B[i])
-    open(filepath.lincurve+Curve[i]+'.txt')
-
-#Determine the number of data sets collected in each night 
-img_sets = set(['1st','2nd','3rd','4th','5th','6th','7th','8th'])
-dnight_sets = {}
-nsets = []
-for dnight in Dataset:
-    n_path = filepath.rawdata + dnight + '/'
-    dnight_sets[dnight] = []
-    for f in os.listdir(n_path):
-        if os.path.isdir(n_path+f) & (f in img_sets):
-            dnight_sets[dnight].append(f)
-    nsets.append(len(dnight_sets[dnight]))
+    #-----------------------------------------------------------------------------#
+    #Standard libraries
+    import matplotlib.pyplot as plt
+    import os
+    import pdb
+    import warnings
     
-    #Make calibration folders
-    if not os.path.exists(filepath.calibdata+dnight):
-        os.makedirs(filepath.calibdata+dnight)
-
-
-#Plot the progress bar template
-barfig, barax = progressbars.bar(Dataset, nsets)
-if all(Processor == 'L_Hung'):
-    barfig.canvas.manager.window.move(2755,0)  
-else:
-    print 'You have 5 seconds to adjust the position of the progress bar window'
-    plt.pause(5) #users have 5 seconds to adjust the figure position
-
-#Progress bar array (to be filled with processing time)
-Z = n.empty((5+len(filelist),14))*n.nan
-
-
-
-#------------ Main data processing code --------------------------------------#
-
-#Import local source code; takes about 12 seconds
-print 'Importing local source code... \n'
-import coordinates as CO
-import extinction as EX
-import filepath
-import fullmosaic
-import galactic
-import medianfilter as MF
-import medianmosaic
-import pointing
-import progressbars
-import reduce as R
-import register as RE
-import zodiacal
-
-#Looping through multiple data nights
-for i in range(len(filelist)):
-    history = open(filepath.calibdata+Dataset[i]+'/processlog.txt', 'w')
-    sets = dnight_sets[Dataset[i]]
+    from datetime import datetime as Dtime
+    from multiprocessing import Process, Queue
     
-    Filter = []; Filterset = {}
-    if V_band[i] == 'Yes': 
-        Filter.append('V')
-        Filterset['V'] = Flat_V[i]
-    if B_band[i] == 'Yes': 
-        Filter.append('B')
-        Filterset['B'] = Flat_B[i]
-
-    P0 = [Dataset[i],sets,Filterset,Curve[i]]
-    P1 = [Dataset[i],sets,Filter] 
-    P2 = [Dataset[i],sets]
+    warnings.filterwarnings("ignore",".*GUI is implemented.*")
+        
+    #------------ Read in the processing list and initialize ---------------------#
+    #Local sources
+    import filepath
+    import progressbars
     
-    log_inputs(filelist[i])
-    reduce_images(*P0)             #reduce images     
-    register_coord(*P1)            #register image positions
-    calculate_pointing_err(*P2)    #calculate pointing error
-    fit_zeropoint(*P1)             #fit for zeropoint
-    compute_coord(*P2)             #compute galactic & ecliptic coordinates
-    apply_filter(*P1)              #apply median filter 
-    mosaic_galactic(*P2)           #make galactic mosaic
-    mosaic_zodiacal(*P2)           #make zodiacal mosaic
-    mosaic_median(*P1)             #make median mosaic
-    mosaic_fullres(*P1)            #make full-resolution mosaic
+    #Read in the processing dataset list and the calibration file names 
+    filelist = n.loadtxt(filepath.processlist+'filelist.txt', dtype=str, ndmin=2)
+    Dataset, V_band, B_band, Flat_V, Flat_B, Curve, Processor = filelist.T
+    
+    #Check the calibration files exist    
+    for i in range(len(filelist)):
+        if V_band == 'Yes':
+            open(filepath.flats+Flat_V[i])
+        if B_band == 'Yes':
+            open(filepath.flats+Flat_B[i])
+        open(filepath.lincurve+Curve[i]+'.txt')
+    
+    #Determine the number of data sets collected in each night 
+    img_sets = set(['1st','2nd','3rd','4th','5th','6th','7th','8th'])
+    dnight_sets = {}
+    nsets = []
+    for dnight in Dataset:
+        n_path = filepath.rawdata + dnight + '/'
+        dnight_sets[dnight] = []
+        for f in os.listdir(n_path):
+            if os.path.isdir(n_path+f) & (f in img_sets):
+                dnight_sets[dnight].append(f)
+        nsets.append(len(dnight_sets[dnight]))
+        
+        #Make calibration folders
+        if not os.path.exists(filepath.calibdata+dnight):
+            os.makedirs(filepath.calibdata+dnight)
+    
+    
+    #Plot the progress bar template
+    barfig, barax = progressbars.bar(Dataset, nsets)
+    if all(Processor == 'L_Hung'):
+        barfig.canvas.manager.window.move(2755,0)  
+    else:
+        print 'You have 5 seconds to adjust the position of the progress bar window'
+        plt.pause(5) #users have 5 seconds to adjust the figure position
+    
+    #Progress bar array (to be filled with processing time)
+    Z = n.empty((5+len(filelist),14))*n.nan
+    
+    
+    
+    #------------ Main data processing code --------------------------------------#
+    import filepath
+    import progressbars
+        
+    #Looping through multiple data nights
+    for i in range(len(filelist)):
+        history = open(filepath.calibdata+Dataset[i]+'/processlog.txt', 'w')
+        log_inputs(filelist[i])
+        
+        Filter = []; Filterset = {}
+        if V_band[i] == 'Yes': 
+            Filter.append('V')
+            Filterset['V'] = Flat_V[i]
+        if B_band[i] == 'Yes': 
+            Filter.append('B')
+            Filterset['B'] = Flat_B[i]
+        
+        sets = dnight_sets[Dataset[i]]
+        K0 = (Dataset[i],sets,Filterset,Curve[i])
+        K1 = (Dataset[i],sets,Filter) 
+        K2 = (Dataset[i],sets)  
 
-    #save the timing records for running the script
-    n.savetxt(filepath.calibdata+Dataset[i]+'/processtime.txt', Z, fmt='%4.1f')
-    barfig.savefig(filepath.calibdata+Dataset[i]+'/processtime.png')
-  
-#Todo: Multiprocessing
-history.close()
+        q2=Queue(); Q2=(q2,); p2=Process(target=pointing_error,args=K2+Q2)
+        q3=Queue(); Q3=(q3,); p3=Process(target=fit_zeropoint,args=K1+Q3)
+        q4=Queue(); Q4=(q4,); p4=Process(target=apply_filter,args=K1+Q4)
+        q5=Queue(); Q5=(q5,); p5=Process(target=compute_coord,args=K2+Q5)  
+        q6=Queue(); Q6=(q6,); p6=Process(target=mosaic_galactic,args=K2+Q6)
+        q7=Queue(); Q7=(q7,); p7=Process(target=mosaic_zodiacal,args=K2+Q7)
+        q8=Queue(); Q8=(q8,); p8=Process(target=mosaic_full,args=K1+Q8)
+        q9=Queue(); Q9=(q9,); p9=Process(target=mosaic_median,args=K1+Q9)
+        
+        reduce_images(*K0)                              #image reduction   
+        register_coord(*K1)                             #pointing 
+        p2.start(); update_progressbar(2,i)             #pointing error
+        p3.start(); update_progressbar(3,i)             #zeropoint & extinction
+        p4.start(); update_progressbar(4,i)             #median filter
+        p2.join() ; update_progressbar(2,i,q2.get())
+        p5.start(); update_progressbar(5,i)             #galactic & ecliptic
+        p5.join() ; update_progressbar(5,i,q5.get())
+        p6.start(); update_progressbar(6,i)             #galactic mosaic
+        p7.start(); update_progressbar(7,i)             #zodiacal mosaic
+        p3.join() ; update_progressbar(3,i,q3.get())
+        p8.start(); update_progressbar(8,i)             #full mosaic
+        p4.join() ; update_progressbar(4,i,q4.get())
+        p9.start(); update_progressbar(9,i)             #median mosaic
+        p6.join() ; update_progressbar(6,i,q6.get())
+        p7.join() ; update_progressbar(7,i,q7.get())
+        p8.join() ; update_progressbar(8,i,q8.get())
+        p9.join() ; update_progressbar(9,i,q9.get())
+        
+        #log the processing history
+        q_all = [q2,q3,q4,q5,q6,q7,q8,q9]
+        for q in q_all:
+            while not q.empty():
+                loghistory(q.get())
+        
+    
+        #save the timing records for running the script
+        n.savetxt(filepath.calibdata+Dataset[i]+'/processtime.txt', Z, fmt='%4.1f')
+        barfig.savefig(filepath.calibdata+Dataset[i]+'/processtime.png')
+        
+    t2 = time.time()
+    print 'Total processing time: %.1f min' %((t2-t1)/60)
+    loghistory(['Total processing time: %.1f min' %((t2-t1)/60),])
+    history.close()
+    

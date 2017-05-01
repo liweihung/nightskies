@@ -3,12 +3,13 @@
 #
 #NPS Night Skies Program
 #
-#Last updated: 2016/12/19
+#Last updated: 2017/05/01
 #
-#This script applies median filter to each image. The filter is a circle with 1 
-#degree diameter. This filter size was selected to ensure most (or all) point 
-#sources are effectively filtered out. Here, MaxIM DL is need to convert the 
-#fits images to tiff images that are compatible for ArcGIS to make mosaic. 
+#This script uses multiprocessing to apply median filter to each image. The 
+#filter is a circle with 1 degree diameter. This filter size was selected to 
+#ensure most (or all) point sources are effectively filtered out. Here, MaxIM DL
+#is need to convert the fits images to tiff images that are compatible for 
+#ArcGIS to make mosaic. 
 #
 #Input: 
 #   (1) Calibrated image data
@@ -25,9 +26,11 @@
 
 from astropy.io import fits
 from glob import glob, iglob
+from multiprocessing import Pool
 from scipy.ndimage.filters import median_filter
 from win32com.client import Dispatch
 
+import itertools
 import numpy as n
 import os
 
@@ -35,10 +38,37 @@ import os
 import filepath  
 
 #-----------------------------------------------------------------------------#    
+def FilterImage(arg):
+    '''
+    Apply the median filter using the given mask size and save the images in 
+    .tif format.
+    '''
+    fn, mask = arg
+    T = Dispatch('Maxim.Document')
+
+    m = int(fn[-7:-4])
+    if m in range(0,50,5): 
+        print 'filtering images %i/45'%m
+    
+    outFits = 'tiff/median_%s.fit'%fn[-9:-4] #temporary file
+    outTiff = 'tiff/median_%s.tif'%fn[-9:-4] #output file
+    D = fits.open(fn)[0]
+    D.data = median_filter(D.data, footprint=mask)
+    D.writeto(fn[:-9]+outFits, clobber=True)
+    T.OpenFile(fn[:-9]+outFits)
+    T.SaveFile(fn[:-9]+outTiff,5,False,1,0)
+    T.Close
+    os.remove(fn[:-9]+outFits)
+    
+
+
+
 def filter(dnight, sets, filter):
     '''
-    This module applies the median filter to the calibrated images and saves them.
+    This module creats a mask and calls the FilterImage module to apply median 
+    filter to the calibrated images through multiprocessing.
     '''
+        
     #filter paths
     F = {'V':'', 'B':'B/'}
     
@@ -57,32 +87,27 @@ def filter(dnight, sets, filter):
     mask = n.zeros_like(R)
     mask[n.where(R<=r)] = 1
     
-    T = Dispatch('Maxim.Document')
-
+    #multiprocessing the filtering process
+    p = Pool()
+    
     #loop through all the sets in that night
     for s in sets:
         calsetp = filepath.calibdata+dnight+'/S_0%s/%s' %(s[0],F[filter])
+        arg = itertools.izip(glob(calsetp+'ib???.fit'), itertools.repeat(mask))
+        p.map(FilterImage, arg)
         
-        # loop through each file in the set
-        for fn in iglob(calsetp+'ib???.fit'):
-            outFits = 'tiff/median_%s.fit'%fn[-9:-4] #temporary file
-            outTiff = 'tiff/median_%s.tif'%fn[-9:-4] #output file
-            D = fits.open(fn)[0]
-            D.data = median_filter(D.data, footprint=mask)
-            D.writeto(calsetp+outFits, clobber=True)
-            T.OpenFile(calsetp+outFits)
-            T.SaveFile(calsetp+outTiff,5,False,1,0)
-            T.Close
-            os.remove(calsetp+outFits)
-            
-            m = int(fn[-7:-4])
-            if m in range(0,50,5): 
-                print 'filtered images %i/45'%m
-
+    p.close()
+    p.join()
     
     #close MaxIm_DL application
-    os.system('taskkill /f /im MaxIm_DL.exe')
+    #os.system('taskkill /f /im MaxIm_DL.exe')
+    
+
     
 if __name__ == "__main__":
-    #filter('FCNA160803', ['1st',], 'B')
+    #import time
+    #t1 = time.time()
+    #filter('FCNA160803', ['1st',], 'V')
+    #t2 = time.time()
+    #print 'Total time: %.1f min' %((t2-t1)/60)
     pass

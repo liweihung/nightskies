@@ -39,8 +39,8 @@ import filepath
 def bar(dnight, nset):
     #process names
     pname = ['Number of sets','Reduction','Pointing','Pointing Error','Zeropoint',
-            'Coordinates','Median Filter', 'Galactic Mosaic','Zodiacal Mosaic',
-            'Median Mosaic','Fullres Mosaic'] 
+            'Median Filter','Coordinates','Galactic Mosaic','Zodiacal Mosaic',
+            'Fullres Mosaic','Median Mosaic'] 
     
     
     #figure setting
