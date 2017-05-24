@@ -5,12 +5,14 @@
 #
 #Last updated: 2016/11/10
 #
-#This script uses the PinPoiot.Plate object (through ACP) to compare the 
-#position of the stars in the images to the published Tycho2 catalog position. 
-#If the plate object cannot solve the entire image, the input image will be 
-#cropped so the plate object will only try to solve the center 200x200 pix. 
-#If the images still can't be solved, it will be skipped. The solved X and Y 
-#coordinates are stored in the header under 'CRVAL1' and 'CRVAL2'.
+#This script will register the pointing of the image to the sky coordinates 
+#using the standard stars captured in the image. Specifically, it uses the 
+#PinPoiot.Plate object (through ACP) to compare the position of the stars in the
+#images to the published Tycho2 catalog position. If the plate object cannot 
+#solve the entire image, the input image will be cropped so the plate object 
+#will only try to solve the central 200x200 pix. If the images still can't be 
+#solved, it will be skipped. The solved X and Y coordinates are stored in the 
+#header under 'CRVAL1' and 'CRVAL2'.
 #
 #Note: In order to use the ACP objects, the Python must be a 32-bit version. 
 #

@@ -6,7 +6,7 @@
 #Last updated: 2016/12/16
 #
 #This script calculates ecliptic and galactic coordinates and rotation angles of
-#images. The output will be used in producing natural sky model for a given 
+#the images. The output will be used in producing natural sky model for a given 
 #location, date, and time.
 #
 #Input: 

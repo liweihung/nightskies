@@ -8,8 +8,8 @@
 #This script uses multiprocessing to apply median filter to each image. The 
 #filter is a circle with 1 degree diameter. This filter size was selected to 
 #ensure most (or all) point sources are effectively filtered out. Here, MaxIM DL
-#is need to convert the fits images to tiff images that are compatible for 
-#ArcGIS to make mosaic. 
+#is needed to convert the fits images to tiff images that are compatible with 
+#ArcGIS to make mosaics. 
 #
 #Input: 
 #   (1) Calibrated image data

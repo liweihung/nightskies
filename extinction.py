@@ -168,7 +168,7 @@ def extinction(dnight, sets, filter, plot_img=0):
             for i in range(len(px)):
                 #set the aperture radii
                 r = ((x-px[i])**2+(y-py[i])**2)**0.5
-                w = n.where(r<3)              #source aperture radiu = 3 pix
+                w = n.where(r<3)              #source aperture radius = 3 pix
                 b = n.where((r>4) & (r<8))    #background aperture 4-8 pix ring
                 
                 #subtract background from the fitted data
