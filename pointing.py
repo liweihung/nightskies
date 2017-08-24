@@ -131,7 +131,7 @@ def pointing_err(dnight, sets):
         
         #just for V band
         solved=[]; notsolved=[]
-        True_AZ=[]; True_ALT=[]; Input_AZ=[]; Input_ALT=[]
+        True_AZ=[]; True_ALT=[]; Input_AZ=[]; Input_ALT=[]        
         for fn in iglob(calsetp+'ib???.fit'):
             H = fits.open(fn)[0].header
             
@@ -173,6 +173,20 @@ def pointing_err(dnight, sets):
                 True_ALT.append(ct.Elevation)
             
             p.DetachFITS()
+            
+        #interpretation needs to have boundary values from first and last images
+        #if the boundary images are not solved, assgin them the default pointing
+        for i in [1, 45]:
+            if i not in solved:
+                fn = calsetp[:-1]+'\\ib%03i.fit' %i
+                H = fits.open(fn)[0].header
+                solved.insert(i-1, i)
+                Input_AZ.insert(i-1, H['AZ'])
+                Input_ALT.insert(i-1, H['ALT'])
+                True_AZ.insert(i-1, H['AZ'])
+                True_ALT.insert(i-1, H['ALT'])
+                notsolved.remove(fn)
+              
         
         #interpolate the True_AZ for True_ALT for images that are not solved
         pterr = n.array([solved,Input_AZ,Input_ALT,True_AZ,True_ALT])
@@ -189,7 +203,7 @@ def pointing_err(dnight, sets):
 
 if __name__ == "__main__":
     pass
-    #pointing_err('FCNA160803', ['1st',])
+    pointing_err('FCNA160803', ['1st',])
     
     
     

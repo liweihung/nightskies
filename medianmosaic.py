@@ -19,6 +19,7 @@
 #
 #Output:
 #   (1) layer files skybrightmags%s.lyr for median mosaic
+#   (2) mask.tif for making the horizontal mask in the later process
 #
 #History:
 #	Dan Duriscoe -- Created as a module in firstbatchv4vb.py
@@ -180,7 +181,7 @@ def mosaic(dnight, sets, filter):
         skytopomags.save(gridsetp+'skybrightmags')
     
         print "Creating layer files for median mosaic"
-        layerfile = filepath.griddata+dnight+'/skybrightmags%s%s.lyr' %(f[filter],s[0])
+        layerfile = filepath.griddata+dnight+'/skybrightmags%s%s.lyr'%(f[filter],s[0])
         arcpy.MakeRasterLayer_management(gridsetp+'skybrightmags', dnight+'_%s_median%s'%(s[0],f[filter]))
         arcpy.SaveToLayerFile_management(dnight+'_%s_median%s'%(s[0],f[filter]), layerfile, "ABSOLUTE")
     
@@ -191,6 +192,12 @@ def mosaic(dnight, sets, filter):
         lyrFile.replaceDataSource(gridsetp,'RASTER_WORKSPACE','skybrightmags',
                                   'FALSE')
         lyrFile.save()
+        
+    #create mask.tif for horizon masking in the later process
+    mask = filepath.griddata+dnight+'/mask.tif'
+    if not os.path.isfile(mask):
+        arcpy.CopyRaster_management(gridsetp+'skybright',mask,"DEFAULTS","0",
+        "0","","","16_BIT_UNSIGNED")
 
     
 if __name__ == "__main__":

@@ -279,7 +279,7 @@ if __name__ == '__main__':
     
     #Plot the progress bar template
     barfig, barax = progressbars.bar(Dataset, nsets)
-    if all(Processor == 'L_Hung'):
+    if all(Processor == 'L_Hung2'):
         barfig.canvas.manager.window.move(2755,0)  
     else:
         print 'You have 5 seconds to adjust the position of the progress bar window'
@@ -321,20 +321,20 @@ if __name__ == '__main__':
         q8=Queue(); Q8=(q8,); p8=Process(target=mosaic_full,args=K1+Q8)
         q9=Queue(); Q9=(q9,); p9=Process(target=mosaic_median,args=K1+Q9)
         
-        reduce_images(*K0)                              #image reduction   
-        register_coord(*K1)                             #pointing 
-        p2.start(); update_progressbar(2,i)             #pointing error
-        p3.start(); update_progressbar(3,i)             #zeropoint & extinction
-        p4.start(); update_progressbar(4,i)             #median filter
+        reduce_images(*K0)                            #image reduction   
+        register_coord(*K1)                           #pointing 
+        p2.start(); update_progressbar(2,i)           #pointing error
+        p3.start(); update_progressbar(3,i)           #zeropoint & extinction
+        p4.start(); update_progressbar(4,i)           #median filter
         p2.join() ; update_progressbar(2,i,q2.get())
-        p5.start(); update_progressbar(5,i)             #galactic & ecliptic
+        p5.start(); update_progressbar(5,i)           #galactic & ecliptic coord
         p5.join() ; update_progressbar(5,i,q5.get())
-        p6.start(); update_progressbar(6,i)             #galactic mosaic
-        p7.start(); update_progressbar(7,i)             #zodiacal mosaic
+        p6.start(); update_progressbar(6,i)           #galactic mosaic
+        p7.start(); update_progressbar(7,i)           #zodiacal mosaic
         p3.join() ; update_progressbar(3,i,q3.get())
-        p8.start(); update_progressbar(8,i)             #full mosaic
+        p8.start(); update_progressbar(8,i)           #full mosaic
         p4.join() ; update_progressbar(4,i,q4.get())
-        p9.start(); update_progressbar(9,i)             #median mosaic
+        p9.start(); update_progressbar(9,i)           #median mosaic
         p6.join() ; update_progressbar(6,i,q6.get())
         p7.join() ; update_progressbar(7,i,q7.get())
         p8.join() ; update_progressbar(8,i,q8.get())

@@ -226,8 +226,8 @@ def extinction(dnight, sets, filter, plot_img=0):
         airmass = 1/n.sin(n.deg2rad(elev))   #airmass
         m = -2.5*n.log10(flux)               #v_mag, apparent
         
-        p, cov = n.polyfit(airmass, M-m, 1, cov=True)
-        c, z = p                             #bestfit coefficient and zeropoint
+        param, cov = n.polyfit(airmass, M-m, 1, cov=True)
+        c, z = param                         #bestfit coefficient and zeropoint
         c_err, z_err = n.sqrt(cov.diagonal())#uncertainties
         
         sx = n.mean(xscale) * 60             #x plate scale ['/pix]
@@ -238,10 +238,10 @@ def extinction(dnight, sets, filter, plot_img=0):
         zeropoint_dnight.append(fit_entry)
                 
         #plot the zeropoint and extinction coefficient fitting result
-        x = n.arange(8)
+        a = n.arange(8)
         fig = plt.figure('zeropoint')
         plt.plot(airmass, M-m, 'o', label='Hipparcos standard stars')
-        plt.plot(x,c*x+z,'-',lw=2,label='Best fit: %.2fx+%.3f' %(c,z))
+        plt.plot(a,c*a+z,'-',lw=2,label='Best fit: %.2fx+%.3f' %(c,z))
         plt.errorbar(0,z,z_err,fmt='o',label='zeropoint: %.3f+-%.3f'%(z,z_err))
         plt.legend(loc=0, numpoints=1)
         plt.xlabel('Airmass',fontsize=14)
@@ -262,7 +262,9 @@ def extinction(dnight, sets, filter, plot_img=0):
     
     return len(stars), fileout
 
-
+if __name__ == "__main__":
+    pass
+    extinction('SCBL170819', ['1st','2nd'], 'B')
 
 
 
