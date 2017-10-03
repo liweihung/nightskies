@@ -33,7 +33,7 @@
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from glob import glob, iglob
-from scipy.interpolate import interp1d
+from scipy.interpolate import UnivariateSpline
 from win32com.client import Dispatch
 
 import pdb
@@ -73,31 +73,47 @@ def interp_coord(filenames, solved_outputs):
     '''
     util = Dispatch('ACP.Util')
     solved, Input_AZ, Input_ALT, True_AZ, True_ALT = solved_outputs
-    f_az = interp1d(solved, True_AZ-Input_AZ, kind='cubic')
-    f_al = interp1d(solved, True_ALT-Input_ALT, kind='cubic')
-
-    for fn in filenames:
-        #insert the interpolated Obs_AZ and Obs_ALT 
-        f = fits.open(fn, mode='update')
-        H = f[0].header
-        i = int(fn[-7:-4])
-        j = i-1
-        entry = [i,H['AZ'],H['ALT'],H['AZ']+f_az(i),H['ALT']+f_al(i)]
-        solved_outputs = n.insert(solved_outputs,i-1,entry,axis=1)
+    fi = n.array([int(filenames[i][-7:-4]) for i in range(len(filenames))])
     
-        #update the RA and DEC in the header with the interpolated values
-        LAST = get_last(H['JD'], H['LONGITUD']) #local apparent sidereal time 
+    w = [0,15,30,40,45] # the number of last image in every elevation row
+    
+    for i in range(len(w)-1):
+        wf = (fi>w[i]) & (fi<=w[i+1])
         
-        ct = util.Newct(H['LATITUDE'],LAST)
-        ct.Azimuth = H['AZ']+f_az(i)
-        ct.Elevation = H['ALT']+f_al(i)
-        c = SkyCoord(ct.RightAscension, ct.Declination, unit=('hour','deg'))
+        if not any(filenames[wf]): continue
+        if i==0: #using the second row of image in elevation for interpolation
+            wi = (solved>w[i+1]) & (solved<=w[i+2])
+            k = min(3, sum(wi)-1)
+            A = UnivariateSpline(solved[wi]-15, True_AZ[wi], k=1)
+            E = UnivariateSpline(solved[wi]-15, True_ALT[wi]-25, k=k)
         
-        f[0].header['RA'] = c.ra.to_string(unit='hour',sep=' ',precision=2)
-        f[0].header['DEC'] = c.dec.to_string(unit='deg',sep=' ',precision=1)
-        f.flush()
-        f.close()
+        else:
+            wi = (solved>w[i]) & (solved<=w[i+1])
+            k = min(3, sum(wi)-1)
+            A = UnivariateSpline(solved[wi], True_AZ[wi], k=k)
+            E = UnivariateSpline(solved[wi], True_ALT[wi], k=k)
+            
+        for fn in filenames[wf]:
+            #insert the interpolated Obs_AZ and Obs_ALT 
+            f = fits.open(fn, mode='update')
+            H = f[0].header
+            j = int(fn[-7:-4])
+            entry = [j,H['AZ'],H['ALT'],float(A(j)),float(E(j))]
+            solved_outputs = n.insert(solved_outputs,j-1,entry,axis=1)
+    
+            #update the RA and DEC in the header with the interpolated values
+            LAST = get_last(H['JD'],H['LONGITUD']) #local apparent sidereal time 
         
+            ct = util.Newct(H['LATITUDE'],LAST)
+            ct.Azimuth = float(A(j))
+            ct.Elevation = float(E(j))
+            c = SkyCoord(ct.RightAscension, ct.Declination, unit=('hour','deg'))
+        
+            f[0].header['RA'] = c.ra.to_string(unit='hour',sep=' ',precision=2)
+            f[0].header['DEC'] = c.dec.to_string(unit='deg',sep=' ',precision=1)
+            f.flush()
+            f.close()
+            
     return solved_outputs.T
 
     
@@ -136,10 +152,7 @@ def pointing_err(dnight, sets):
             H = fits.open(fn)[0].header
             
             #calculating the pointing error only if the plate is solved
-            try:
-                if H['PLTSOLVD']: pass
-                else: notsolved.append(fn); continue
-            except KeyError:
+            if 'PLTSOLVD' not in H or H['PLTSOLVD']==False: 
                 notsolved.append(fn)
                 continue
             
@@ -173,24 +186,11 @@ def pointing_err(dnight, sets):
                 True_ALT.append(ct.Elevation)
             
             p.DetachFITS()
-            
-        #interpretation needs to have boundary values from first and last images
-        #if the boundary images are not solved, assgin them the default pointing
-        for i in [1, 45]:
-            if i not in solved:
-                fn = calsetp[:-1]+'\\ib%03i.fit' %i
-                H = fits.open(fn)[0].header
-                solved.insert(i-1, i)
-                Input_AZ.insert(i-1, H['AZ'])
-                Input_ALT.insert(i-1, H['ALT'])
-                True_AZ.insert(i-1, H['AZ'])
-                True_ALT.insert(i-1, H['ALT'])
-                notsolved.remove(fn)
-              
+                          
         
         #interpolate the True_AZ for True_ALT for images that are not solved
         pterr = n.array([solved,Input_AZ,Input_ALT,True_AZ,True_ALT])
-        pterr = interp_coord(notsolved, pterr)
+        pterr = interp_coord(n.array(notsolved), pterr)
 
         #saving the output file        
         outfile = filepath.calibdata+dnight+'/pointerr_%s.txt' %s[0]
@@ -203,7 +203,7 @@ def pointing_err(dnight, sets):
 
 if __name__ == "__main__":
     pass
-    pointing_err('FCNA160803', ['1st',])
+    pointing_err('VOYA170913', ['1st',])
     
     
     
