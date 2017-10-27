@@ -73,6 +73,13 @@ target_pnt = "'0 0';'0 296708';'0 593400';'0 890100';'0 1186800';'0 1483500';\
           
 #-----------------------------------------------------------------------------#
 def clip_envelope(AZ, ALT, i):
+    '''
+    Calculate the four coordinates defining the minimum bounding rectangle to be clipped
+    by the arcpy.Clip_management() function. 
+
+    Returns coordinates are defined in this order: 
+    X-Minimum, Y-Minimum, X-Maximum, Y-Maximum.
+    '''
     if i < 15:
         bond = [AZ[i]-13,-6,AZ[i]+13,ALT[i]+12.9] 
     elif i < 30: 
