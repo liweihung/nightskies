@@ -124,7 +124,7 @@ def extinction(dnight, sets, filter, plot_img=0):
         for fn in iglob(calsetp+'ib???.fit'):
             H = fits.open(fn)[0].header
             
-            #proceed only if the plate is solved
+            #proceed only if the plate (what plate?) is solved
             try:
                 if H['PLTSOLVD']: pass
                 else: continue
