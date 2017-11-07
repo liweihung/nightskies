@@ -26,7 +26,8 @@
 #
 #History:
 #	Dan Duriscoe -- Created in visual basic as "calc_pointing_error_v4.vbs"
-#	Li-Wei Hung -- Cleaned, improved, and translated to python
+#	Li-Wei Hung -- Cleaned, improved, and translated to Python
+#   Davyd Betchkal -- Plotted the pointing error by image number
 #
 #-----------------------------------------------------------------------------#
 
@@ -206,8 +207,9 @@ def pointing_err(dnight, sets):
         pterr = interp_coord(n.array(notsolved), pterr)
 
         # calculate errors
-        pErr = pterr.T 
-        azmErr = pErr[1] - pErr[3]
+        pErr = pterr.T
+        pErr[3][n.where((pErr[1]==0)& (pErr[3]>180))] -= 360
+        azmErr = (pErr[1] - pErr[3])*n.cos(n.deg2rad(pErr[4]))
         altErr = pErr[2] - pErr[4]
         totErr = n.sqrt(n.power(azmErr,2) + n.power(altErr,2))
 
@@ -229,7 +231,7 @@ def pointing_err(dnight, sets):
     	plt.xticks(n.arange(0, 50, 5))
     	plt.legend(loc='upper left', markerscale=1.8, fontsize=18, framealpha=0.3)
     	ax.tick_params(axis='both', which='major', labelsize=15)
-    	plt.text(0, -2.8, "Average Total Error:   " + '{:.3f}'.format(totErr.mean()) + u'\N{DEGREE SIGN}', fontsize=14)
+    	plt.text(0.5, -2.8, "Average Total Error:   " + '{:.3f}'.format(totErr.mean()) + u'\N{DEGREE SIGN}', fontsize=18)
     	errorPlot.savefig(filepath.calibdata+dnight+'/pointerr_%s.png' %s[0])
 
         #saving the output file        
