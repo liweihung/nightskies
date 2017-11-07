@@ -10,7 +10,7 @@
 #solved, the RA, Dec, AZ, and ALT values are interpolated.
 #	(1) Read in the solved RA and Dec values from the image header.
 #	(2) Update the coordinates to the observed date.
-#	(3) Translate to the azimuth and altitude given the LAST and the logitude.
+#	(3) Translate to the azimuth and altitude given the LAST and the longitude.
 #   (4) Write the output to file
 #   (5) Insert the interpolated AZ and ALT in the output file 
 #   (6) Update the headers with the interpolated RA and Dec if the images are 
@@ -38,19 +38,32 @@ from win32com.client import Dispatch
 
 import pdb
 import numpy as n
+import matplotlib.pyplot as plt
 
 # Local Source
 import filepath  
 
 #-----------------------------------------------------------------------------#
-def get_last(JD, logitude):
+def get_last(JD, longitude):
+
     '''
-    The function calculates the local apparent sidereal time given the Julian 
-    Date (JD) and the logitude [deg] of the observing site. This calculation is
-    based on the information on http://aa.usno.navy.mil/faq/docs/GAST.php
-    The maximum error resulting from the use of these formulas for sidereal 
-    time over the period 2000-2100 is 0.432 seconds.
+    This function calculates the local apparent sidereal time given 
+    the Julian Date (JD) and the longitude [deg] of the observing site. 
+    This calculation is based on the information from http://aa.usno.navy.mil/faq/docs/GAST.php
+    The maximum error resulting from the use of these formulas 
+    for sidereal time over the period 2000-2100 is 0.432 seconds.
+
+    Parameters
+    ----------
+    JD: float, the julian day of observation.
+    longitude: float, longitude of the observing site (~~which coordinate system??~~)
+
+	Returns
+	-------
+	float
+
     '''
+
     D = JD - 2451545.0                                   #number of days from 2000 January 1, 12h UT
     GMST = 18.697374558 + 24.06570982441908*D            #Greenwich mean sidereal time [hr]
     
@@ -61,7 +74,7 @@ def get_last(JD, logitude):
     eqeq = Del_Phi*n.cos(eps)                            #equation of the equinoxes
     
     GAST = GMST + eqeq                                   #Greenwich apparent sidereal time [hr]
-    LAST = (GAST+logitude/360*24)%24                     #local apparent sidereal time [hr]
+    LAST = (GAST+longitude/360*24)%24                     #local apparent sidereal time [hr]
     
     return LAST
 
@@ -192,6 +205,33 @@ def pointing_err(dnight, sets):
         pterr = n.array([solved,Input_AZ,Input_ALT,True_AZ,True_ALT])
         pterr = interp_coord(n.array(notsolved), pterr)
 
+        # calculate errors
+        pErr = pterr.T 
+        azmErr = pErr[1] - pErr[3]
+        altErr = pErr[2] - pErr[4]
+        totErr = n.sqrt(n.power(azmErr,2) + n.power(altErr,2))
+
+        #create a pointing error plot
+        errorPlot = plt.figure(figsize=(20,10))
+    	ax = errorPlot.add_subplot(111)
+    	plt.suptitle("Pointing Error by Image Number", fontsize=25, verticalalignment='top')
+    	plt.title("Data Set " + s[0], fontsize=20)
+    	plt.plot(pErr[0], azmErr, linestyle="-.", marker="o", markerfacecolor='None', 
+    		markersize=4, color = "darkorange", alpha=0.7, label="Azimuth Error")
+    	plt.plot(pErr[0], altErr, linestyle="--", marker="o", 
+    		markersize=4, color = "darkgreen", alpha=0.7, label="Altitude Error")
+    	plt.plot(pErr[0], totErr, linestyle="-", linewidth=2, marker="o", 
+    		markersize=6, color = "black", alpha=1, label="Total Error")
+    	plt.axhline(0, color="black", linestyle="-", alpha=0.5, zorder=-10)
+    	plt.ylim(-3, 3)
+    	plt.ylabel("Error in Degrees", fontsize=20, labelpad = 10)
+    	plt.xlabel("Image Number", fontsize=20, labelpad = 15)
+    	plt.xticks(n.arange(0, 50, 5))
+    	plt.legend(loc='upper left', markerscale=1.8, fontsize=18, framealpha=0.3)
+    	ax.tick_params(axis='both', which='major', labelsize=15)
+    	plt.text(0, -2.8, "Average Total Error:   " + '{:.3f}'.format(totErr.mean()) + u'\N{DEGREE SIGN}', fontsize=14)
+    	errorPlot.savefig(filepath.calibdata+dnight+'/pointerr_%s.png' %s[0])
+
         #saving the output file        
         outfile = filepath.calibdata+dnight+'/pointerr_%s.txt' %s[0]
         nformat = ['%4.f','%8.f','%8.1f','%8.2f','%8.2f']
@@ -202,8 +242,9 @@ def pointing_err(dnight, sets):
 
 
 if __name__ == "__main__":
-    pass
-    pointing_err('VOYA170913', ['1st',])
+    # pass
+    print("Hi, running from the console.")
+    pointing_err('FCNA160803', ['1st',])
     
     
     
