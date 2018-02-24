@@ -1,4 +1,5 @@
 # NSNSD Night Skies CCD Camera Data Reduction Pipeline
+![false color CCD image](https://github.com/liweihung/nightskies/blob/master/static/FalseColor_example.png)
 
 <!-- MarkdownTOC autolink=true depth=3 bracket=round -->
 
@@ -35,6 +36,8 @@
 ## Preparing Data For Processing
 
 ## Processing Flow Chart
+
+![processing flow chart](https://github.com/liweihung/nightskies/blob/master/static/FlowChart.png)
 
 ## Module Documentation
 
