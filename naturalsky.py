@@ -45,6 +45,7 @@ import numpy as n
 import os
 import scipy
 #import shutil
+import sys
 
 # Local Source
 import filepath  
@@ -166,6 +167,32 @@ class Model(object):
         computes 1D or 2D array of brightness model as a function of zenith angle. 
         """
         raise NotImplementedError
+        
+    def image_template(self, image, title, cmapname, min, max):
+        fig = plt.figure(figsize=(12,3.4))
+        im = plt.imshow(image, cmap=cmapname, extent=(-180,180,0,90), 
+                        vmin=min, vmax=max) 
+        plt.xticks(n.arange(-180, 181, 30))
+        plt.yticks(n.arange(0, 91, 15))
+        plt.xlabel('Azimuth (degree)')
+        plt.ylabel('Altitude (degree)')
+
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", size="1.5%", pad="2%")
+        cbar = plt.colorbar(im, cax=cax,  ticks=n.arange(min,max+1))
+        cbar.ax.invert_yaxis()
+        
+        labels = map(str, n.arange(min,max+1))
+        labels[0] = '<'+labels[0]
+        labels[-1] = '>'+labels[-1]
+        
+        cbar.ax.set_yticklabels(labels)
+        cbar.set_label(r'mag / arcsec$^2$')
+        
+        fig.canvas.set_window_title(title)
+
+        plt.tight_layout()
+        plt.show(block=False)    
 
     def show_input_model(self,):
         """
@@ -213,7 +240,7 @@ class ADL(_ADLModelBase):
  
         ZA_pts, ADL_pts = n.loadtxt(ADL_file).T  #zenith angles [deg], ADL [nL]
         f = interpolate.interp1d(ZA_pts, ADL_pts, fill_value='extrapolate')
-        self.input_model = f(self.za)       #ADL[nL] at the given zenith angles
+        self.input_model = f(self.za)[:,n.newaxis] #ADL[nL] at the zenith angles
         
     def compute_observed_model(self,):
         """
@@ -344,48 +371,33 @@ class Zodiacal(_ZodiacalModelBase):
         d, s, f = self.dnight, self.set, self.filter
         self.input_model = get_panoramic_raster(d, s, f, 'zod')
         
-    def compute_observed_model(self,):
+    def compute_observed_model(self, unit='nl'):
         """
         This function computes the observed brightness model of zodiacal light 
         [mag] with the current parameters. 
         """
         extinction_total = self.parameters['e']*self.extinction*self.airmass
-        return self.input_model + extinction_total
-        
-    def image_template(self, image, title):
-        fig = plt.figure(figsize=(12,3.4))
-        im = plt.imshow(image, cmap='gist_heat_r', extent=(-180,180,0,90), 
-                        vmax=25, vmin=21)
-        plt.xticks(n.arange(-180, 181, 30))
-        plt.yticks(n.arange(0, 91, 15))
-        plt.xlabel('Azimuth (degree)')
-        plt.ylabel('Altitude (degree)')
-        
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", size="1.5%", pad="2%")
-        cbar = plt.colorbar(im, cax=cax, ticks=n.arange(21,26,1))
-        cbar.ax.invert_yaxis()
-        cbar.ax.set_yticklabels(['<21','22','23','24','>25'])
-        cbar.set_label(r'mag / arcsec$^2$')
-        
-        fig.canvas.set_window_title(title)
-
-        plt.tight_layout()
-        plt.show(block=False)
+        if unit=='mag':
+            return self.input_model + extinction_total
+        else:
+            return mag_to_nl_liwei(self.input_model + extinction_total)
         
     def show_input_model(self,):
         """
         show the input model with default parameters
         """
-        small_img = downscale_local_mean(self.input_model,(10,10))
-        self.image_template(small_img, "Zodiacal_light_input_model")
+        small_img = downscale_local_mean(self.input_model,(25,25))
+        self.image_template(small_img, "Zodiacal_light_input_model", 
+                            'gist_heat_r', 21, 25)
 
     def show_observed_model(self,):
         """
         show the observed model with the current parameters
         """
-        small_img = downscale_local_mean(self.compute_observed_model(),(10,10))
-        self.image_template(small_img, "Zodiacal_light_obsersved_model")
+        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
+                                   (25,25))
+        self.image_template(img,"Zodiacal_light_obsersved_model",'gist_heat_r',
+                            21, 25)
 
 
 #galactic model
@@ -408,48 +420,33 @@ class Galactic(_GalacticModelBase):
         d, s, f = self.dnight, self.set, self.filter
         self.input_model = get_panoramic_raster(d, s, f, 'gal')
         
-    def compute_observed_model(self,):
+    def compute_observed_model(self,unit='nl'):
         """
         This function computes the observed brightness model of galactic light 
         [mag] with the current parameters. 
         """
         extinction_total = self.parameters['e']*self.extinction*self.airmass
-        return self.input_model + extinction_total
-        
-    def image_template(self, image, title):
-        fig = plt.figure(figsize=(12,3.4))
-        im = plt.imshow(image, cmap='Blues', extent=(-180,180,0,90), 
-                        vmax=25, vmin=20) #or gist_gray_r
-        plt.xticks(n.arange(-180, 181, 30))
-        plt.yticks(n.arange(0, 91, 15))
-        plt.xlabel('Azimuth (degree)')
-        plt.ylabel('Altitude (degree)')
-        
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", size="1.5%", pad="2%")
-        cbar = plt.colorbar(im, cax=cax,  ticks=n.arange(20,26,1))
-        cbar.ax.invert_yaxis()
-        cbar.ax.set_yticklabels(['<20','21','22','23','24','>25'])
-        cbar.set_label(r'mag / arcsec$^2$')
-        
-        fig.canvas.set_window_title(title)
-
-        plt.tight_layout()
-        plt.show(block=False)
-        
+        if unit=='mag':
+            return self.input_model + extinction_total
+        else:
+            return mag_to_nl_liwei(self.input_model + extinction_total)
+            
     def show_input_model(self,):
         """
         show the input model with default parameters
         """
-        small_img = downscale_local_mean(self.input_model,(10,10))
-        self.image_template(small_img, "Galactic_light_input_model")
+        small_img = downscale_local_mean(self.input_model,(25,25))
+        self.image_template(small_img, "Galactic_light_input_model", 
+                            'Blues', 20, 25)
 
     def show_observed_model(self,):
         """
         show the observed model with the current parameters
         """
-        small_img = downscale_local_mean(self.compute_observed_model(),(10,10))
-        self.image_template(small_img, "Galactic_light_obsersved_model")
+        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
+                                   (25,25))
+        self.image_template(img, "Galactic_light_obsersved_model", 'Blues', 
+                            20, 25)
 
 
 #mask        
@@ -465,14 +462,14 @@ class Mask(_MaskBase):
     def get_input_model(self,):
         """
         This reads in the mask to be used in the fitting process. This mask only
-        extends from the zenith to the horizon. Sky = 1; terrain = 0.
+        extends from the zenith to the horizon. Sky = 0; terrain = 1.
         """
         im = Image.open(filepath.griddata+self.dnight+'/mask.tif')
         mask_tif = n.array(im)[:1800]  #only selecting pixels above the horizon
-        sky = n.where(mask_tif==65535) #sky pixels
+        terrain = n.where(mask_tif!=65535) #terrain pixels
     
-        mask = n.zeros_like(mask_tif)  #initialize mask to be opaque
-        mask[sky] = 1
+        mask = n.zeros_like(mask_tif)  #initialize mask to zeros
+        mask[terrain] = 1
     
         self.input_model = mask
         
@@ -480,51 +477,122 @@ class Mask(_MaskBase):
         """
         show the input mask
         """
-        small_img = downscale_local_mean(self.input_model,(10,10))
+        small_img = downscale_local_mean(self.input_model,(25,25))
+        self.image_template(small_img, "Terrain_mask",'binary', 0, 1)
 
-        fig = plt.figure(figsize=(12,3.4))
-        im = plt.imshow(small_img, cmap='binary_r', extent=(-180,180,0,90), 
-                        vmax=1, vmin=0)
-        plt.xticks(n.arange(-180, 181, 30))
-        plt.yticks(n.arange(0, 91, 15))
-        plt.xlabel('Azimuth (degree)')
-        plt.ylabel('Altitude (degree)')
         
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", size="1.5%", pad="2%")
-        cbar = plt.colorbar(im, cax=cax,  ticks=[0,1])
-        cbar.ax.set_yticklabels(['terrain','sky'])
-        
-        fig.canvas.set_window_title("Terrain_mask")
+#------------------------------------------------------------------------------# 
 
-        plt.tight_layout()
-        plt.show(block=False)
-############ Start coding from here 
+_AggregateModelBase = Model
+class AggregateModel(_AggregateModelBase):
+    """
+    Aggregate models 
+    - "fix_param" will keep parameters fixed during the fitting process. It 
+      takes the form {model:[fixed params]}
+    """
 
-#--------------------------------------------------------------------------- 
+    def __init__(self, model_list, *args, **kwargs):
+        # call base class constructor
+        _AggregateModelBase.__init__(self, *args, **kwargs)
+
+        self.model_list = model_list
+        self.fix_param = kwargs.get('fix_param',{}) #{model:[fixed params]}
+
+    def get_parameters(self, parameter_list=None):
+        assert parameter_list is None
+
+        all_parms = []
+        for model in self.model_list:
+            model_params = model.parameters.copy()
+            if model in self.fix_param:
+                [model_params.pop(k) for k in self.fix_param[model]]
+
+            floating_params = model_params.values()
+            all_parms.extend(floating_params)
+        return all_parms
+
+    def nfree(self,):
+        n_param_max = 0
+        for model in self.model_list:
+            n_param_max += len(model.parameters)
+        nfix = len(list(itertools.chain(*self.fix_param.values())))
+        n_free = n_param_max - nfix  #number of free parameters
+        return n_free
+
+    def set_parameters(self, p, parameter_list=None):
+        assert parameter_list is None
+
+        # assert that the number of parameters is correct
+        assert len(p) == self.nfree(),"the number of the parameter given does \
+                                      not match the number of free parameters"
+
+        # set the free parameters to the new values 
+        i = 0
+        for model in self.model_list:
+            model_params = model.parameters.copy()
+            if model in self.fix_param:
+                [model_params.pop(k) for k in self.fix_param[model]]
+            n_parms = len(model_params)
+            parms = p[i:i+n_parms]
+            model.set_parameters(parms, parameter_list=model_params.keys())
+            i += n_parms
+    
+
+    def compute_observed_model(self, unit='nl'):
+        """
+        This function computes the combined brightness from all the input models  
+        """
+        im = self.model_list[0].compute_observed_model()
+        for model in self.model_list[1:]:
+            im += model.compute_observed_model()
+        if unit=='mag':
+            return nl_to_mag(im)
+        else:
+            return im
+            
+    def show_observed_model(self,):
+        """
+        show the observed model with the current parameters
+        """
+        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
+                                   (25,25))
+        self.image_template(img, "Natural_sky_model", 'Blues', 19, 22)
+       
+#------------------------------------------------------------------------------#
 
 A = Airglow()
-A.show_input_model()
-A.show_observed_model()
+print(A.parameters)
+#A.show_input_model()
+#A.show_observed_model()
 
 D = ADL()
-D.show_input_model()
-D.show_observed_model()
+print(D.parameters)
+#D.show_input_model()
+#D.show_observed_model()
 
 Z = Zodiacal()
-Z.show_input_model()
-Z.show_observed_model()
+print(Z.parameters)
+#Z.show_input_model()
+#Z.show_observed_model()
 
 G = Galactic()
-G.show_input_model()
-G.show_observed_model()
+print(G.parameters)
+#G.show_input_model()
+#G.show_observed_model()
 
 M = Mask()
-M.show_input_model()
+print(M.parameters)
+#M.show_input_model()
 
-#mask = get_mask('FCNA160803/mask.tif')
-#small_img = downscale_local_mean(mask,(10,10))
-#plt.imshow(small_img)
+T = AggregateModel([G,Z,A,D])
+T.show_observed_model()
+
+#small_mask = downscale_local_mean(M.input_model,(25,25))
+#small_img = nl_to_mag(downscale_local_mean(Img,(25,25)))
+#masked_img = n.ma.masked_array(small_img, mask=small_mask)
+#plt.imshow(small_img, cmap='binary')
+#plt.imshow(masked_img, cmap='binary')
+#cbar = plt.colorbar()
 #plt.show(block=False)
 
 #-----------------------------------------------------------------------------#
