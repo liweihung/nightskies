@@ -49,6 +49,7 @@ import sys
 
 # Local Source
 import filepath  
+import colormaps
 
 #-----------------------------------------------------------------------------#
 #conversion
@@ -70,14 +71,13 @@ def mag_to_nl_dan(m):
     
 def mag_to_nl_liwei(m):
     """
-    Converting brightness from magnitude to nL according to Dan's script
-    Note: this is inconsistent to nL_to_mag()
+    Converting brightness from magnitude to nL according to nl_to_mag
     """
     x = 10**((26.3308-m)/2.5)
     return x
 
 #galactic model, zodiacal model, and median_filtered image
-def get_panoramic_raster(dnight, set, band, raster):
+def get_panoramic_raster(dnight, set, band, raster, k=25):
     """    
     This function reads in a raster file and converts it into a Python array. 
     Only area above the horizon is preserved to enforce consistency. 
@@ -87,6 +87,7 @@ def get_panoramic_raster(dnight, set, band, raster):
     set -- data set; i.e. 1 
     band -- filter; either 'V' or 'B'
     raster -- input raster file; either 'gal', 'zod', or 'median'
+    k -- downscale factor for making the image smaller
 
     Returns:
     A -- a 2D Python array of shape (1800,7200)   
@@ -101,8 +102,9 @@ def get_panoramic_raster(dnight, set, band, raster):
     file = filepath.griddata+dnight+"/S_0"+str(set)+path[raster]
     arcpy_raster = arcpy.sa.Raster(file)  
     A = arcpy.RasterToNumPyArray(arcpy_raster, "#", "#", "#", -9999)[:1800,:]
+    A_small = downscale_local_mean(A,(k,k))
     
-    return A
+    return A_small
 
 
 #-----------------------------------------------------------------------------#
@@ -119,6 +121,7 @@ class Model(object):
         self.filter = kwargs.get('filter', 'V')          #filter used
         self.elevation = kwargs.get('elevation', 0.)     #site elevation [km]
         self.extinction = kwargs.get('extinction', 0.3)  #extinction coefficient
+        self.downscale = kwargs.get('downscale', 25)     #downscale factor
         self.pixscale = kwargs.get('pixscale', 0.05)     #pixscale [deg/pix]
         self.za_min = kwargs.get('za_min', 0.)           #min zenith angle [deg]
         self.za_max = kwargs.get('za_max', 90.)          #max zenith angle [deg]
@@ -131,8 +134,8 @@ class Model(object):
         to max with the resolution of pixscale. The output values are centered 
         in between the sampling point boundaries.
         """
-        za_range = n.arange(self.za_min,self.za_max,self.pixscale)
-        self.za = za_range + self.pixscale/2
+        za = n.arange(self.za_min,self.za_max,self.pixscale*self.downscale)
+        self.za = za + self.pixscale*self.downscale/2
         
     def compute_airmass(self,):
         """    
@@ -168,7 +171,7 @@ class Model(object):
         """
         raise NotImplementedError
         
-    def image_template(self, image, title, cmapname, min, max):
+    def image_template(self, image, title, cmapname='NPS_mag', min=14, max=24):
         fig = plt.figure(figsize=(12,3.4))
         im = plt.imshow(image, cmap=cmapname, extent=(-180,180,0,90), 
                         vmin=min, vmax=max) 
@@ -206,75 +209,7 @@ class Model(object):
         """
         raise NotImplementedError
 
-
-#atmospheric diffused light model
-_ADLModelBase = Model
-class ADL(_ADLModelBase):
-
-    def __init__(self, *args, **kwargs):
-        # call base class constructor
-        _ADLModelBase.__init__(self, *args, **kwargs)
-    
-        self.parameters.update({'a':1.20})
-        self.parameter_list = self.parameters.keys()
-        self.get_input_model()
-
-    def get_input_model(self,):
-        """    
-        This function gets the atmospheric diffused light [nL] profile as a 
-        function of zenith angle [deg]. The ADL is read and interpolated from 
-        Dan Duriscoe's raster file called 'adl_05'. See Duriscoe 2013 and Kwon 
-        et al. 2004. 
-        """
-    
-        ADL_file = filepath.rasters+'ADL.txt'
-    
-        if not os.path.exists(ADL_file):
-            import arcpy
-            ADLraster = arcpy.sa.Raster(filepath.rasters+"adl_05")  
-            gridArray = arcpy.RasterToNumPyArray(ADLraster,"#","#","#",-9999)
-            za = n.arange(0,95,0.05) + 0.05/2
-            za_adl = n.array([za,gridArray[:,0]]).T
-            H = 'Zenith Angle [deg], ADL[nL]'
-            n.savetxt(ADL_file,za_adl,fmt=['%10.2f','%15.2f'],header=H)
- 
-        ZA_pts, ADL_pts = n.loadtxt(ADL_file).T  #zenith angles [deg], ADL [nL]
-        f = interpolate.interp1d(ZA_pts, ADL_pts, fill_value='extrapolate')
-        self.input_model = f(self.za)[:,n.newaxis] #ADL[nL] at the zenith angles
         
-    def compute_observed_model(self,):
-        """
-        This function computes the atmospheric diffused light [nL] scaled to the
-        factor a at the given zenith angles. 
-        """
-        return self.parameters['a'] * self.input_model
-        
-    def show_input_model(self,):
-        """
-        show the input model with default parameters
-        """
-        fig, ax = plt.subplots()
-        ax.plot(self.za, self.input_model)
-        ax.tick_params(axis='both', which='major', labelsize=14)
-        ax.set_xlabel('Zenith Angle [Degree]',fontsize=14)
-        ax.set_ylabel('ADL Brightness [nL]',fontsize=14)
-        fig.canvas.set_window_title("ADL_input_model")
-        plt.show(block=False)
-        
-    def show_observed_model(self,):
-        """
-        show the observed model image with current parameters
-        """
-        observed_model = self.compute_observed_model()
-        fig, ax = plt.subplots()
-        ax.plot(self.za, observed_model)
-        ax.tick_params(axis='both', which='major', labelsize=14)
-        ax.set_xlabel('Zenith Angle [Degree]',fontsize=14)
-        ax.set_ylabel('ADL Brightness [nL]',fontsize=14)
-        fig.canvas.set_window_title("ADL_observed_model")
-        plt.show(block=False)
-        
-
 #airglow model
 _AirglowModelBase = Model
 class Airglow(_AirglowModelBase):
@@ -350,55 +285,74 @@ class Airglow(_AirglowModelBase):
         fig.canvas.set_window_title("Airglow_observed_model")
         plt.show(block=False)
                 
-        
-#zodiacal light model
-_ZodiacalModelBase = Model
-class Zodiacal(_ZodiacalModelBase):
+
+#atmospheric diffused light model
+_ADLModelBase = Model
+class ADL(_ADLModelBase):
 
     def __init__(self, *args, **kwargs):
         # call base class constructor
-        _ZodiacalModelBase.__init__(self, *args, **kwargs)
+        _ADLModelBase.__init__(self, *args, **kwargs)
     
-        self.parameters.update({'e':0.6,}) #Zodiacal light extinction factor 
+        self.parameters.update({'a':1.20})
         self.parameter_list = self.parameters.keys()
         self.get_input_model()
-    
+
     def get_input_model(self,):
+        """    
+        This function gets the atmospheric diffused light [nL] profile as a 
+        function of zenith angle [deg]. The ADL is read and interpolated from 
+        Dan Duriscoe's raster file called 'adl_05'. See Duriscoe 2013 and Kwon 
+        et al. 2004. 
         """
-        This function reads in the zodiacal light model [mag] specific for this
-        set of data. 
-        """
-        d, s, f = self.dnight, self.set, self.filter
-        self.input_model = get_panoramic_raster(d, s, f, 'zod')
+    
+        ADL_file = filepath.rasters+'ADL.txt'
+    
+        if not os.path.exists(ADL_file):
+            import arcpy
+            ADLraster = arcpy.sa.Raster(filepath.rasters+"adl_05")  
+            gridArray = arcpy.RasterToNumPyArray(ADLraster,"#","#","#",-9999)
+            za = n.arange(0,95,0.05) + 0.05/2
+            za_adl = n.array([za,gridArray[:,0]]).T
+            H = 'Zenith Angle [deg], ADL[nL]'
+            n.savetxt(ADL_file,za_adl,fmt=['%10.2f','%15.2f'],header=H)
+ 
+        ZA_pts, ADL_pts = n.loadtxt(ADL_file).T  #zenith angles [deg], ADL [nL]
+        f = interpolate.interp1d(ZA_pts, ADL_pts, fill_value='extrapolate')
+        self.input_model = f(self.za)[:,n.newaxis] #ADL[nL] at the zenith angles
         
-    def compute_observed_model(self, unit='nl'):
+    def compute_observed_model(self,):
         """
-        This function computes the observed brightness model of zodiacal light 
-        [mag] with the current parameters. 
+        This function computes the atmospheric diffused light [nL] scaled to the
+        factor a at the given zenith angles. 
         """
-        extinction_total = self.parameters['e']*self.extinction*self.airmass
-        if unit=='mag':
-            return self.input_model + extinction_total
-        else:
-            return mag_to_nl_liwei(self.input_model + extinction_total)
+        return self.parameters['a'] * self.input_model
         
     def show_input_model(self,):
         """
         show the input model with default parameters
         """
-        small_img = downscale_local_mean(self.input_model,(25,25))
-        self.image_template(small_img, "Zodiacal_light_input_model", 
-                            'gist_heat_r', 21, 25)
-
+        fig, ax = plt.subplots()
+        ax.plot(self.za, self.input_model)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.set_xlabel('Zenith Angle [Degree]',fontsize=14)
+        ax.set_ylabel('ADL Brightness [nL]',fontsize=14)
+        fig.canvas.set_window_title("ADL_input_model")
+        plt.show(block=False)
+        
     def show_observed_model(self,):
         """
-        show the observed model with the current parameters
+        show the observed model image with current parameters
         """
-        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
-                                   (25,25))
-        self.image_template(img,"Zodiacal_light_obsersved_model",'gist_heat_r',
-                            21, 25)
-
+        observed_model = self.compute_observed_model()
+        fig, ax = plt.subplots()
+        ax.plot(self.za, observed_model)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.set_xlabel('Zenith Angle [Degree]',fontsize=14)
+        ax.set_ylabel('ADL Brightness [nL]',fontsize=14)
+        fig.canvas.set_window_title("ADL_observed_model")
+        plt.show(block=False)
+        
 
 #galactic model
 _GalacticModelBase = Model 
@@ -435,19 +389,60 @@ class Galactic(_GalacticModelBase):
         """
         show the input model with default parameters
         """
-        small_img = downscale_local_mean(self.input_model,(25,25))
-        self.image_template(small_img, "Galactic_light_input_model", 
-                            'Blues', 20, 25)
+        self.image_template(self.input_model, "Galactic_light_input_model")
 
     def show_observed_model(self,):
         """
         show the observed model with the current parameters
         """
-        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
-                                   (25,25))
-        self.image_template(img, "Galactic_light_obsersved_model", 'Blues', 
-                            20, 25)
+        img = self.compute_observed_model(unit='mag')
+        self.image_template(img, "Galactic_light_obsersved_model")
 
+                            
+#zodiacal light model
+_ZodiacalModelBase = Model
+class Zodiacal(_ZodiacalModelBase):
+
+    def __init__(self, *args, **kwargs):
+        # call base class constructor
+        _ZodiacalModelBase.__init__(self, *args, **kwargs)
+    
+        self.parameters.update({'e':0.6,}) #Zodiacal light extinction factor 
+        self.parameter_list = self.parameters.keys()
+        self.get_input_model()
+    
+    def get_input_model(self,):
+        """
+        This function reads in the zodiacal light model [mag] specific for this
+        set of data. 
+        """
+        d, s, f = self.dnight, self.set, self.filter
+        self.input_model = get_panoramic_raster(d, s, f, 'zod')
+        
+    def compute_observed_model(self, unit='nl'):
+        """
+        This function computes the observed brightness model of zodiacal light 
+        [mag] with the current parameters. 
+        """
+        extinction_total = self.parameters['e']*self.extinction*self.airmass
+        if unit=='mag':
+            return self.input_model + extinction_total
+        else:
+            return mag_to_nl_liwei(self.input_model + extinction_total)
+        
+    def show_input_model(self,):
+        """
+        show the input model with default parameters
+        """
+        self.image_template(self.input_model, "Zodiacal_light_input_model")
+
+    def show_observed_model(self,):
+        """
+        show the observed model with the current parameters
+        """
+        img = self.compute_observed_model(unit='mag')
+        self.image_template(img,"Zodiacal_light_obsersved_model")
+        
 
 #mask        
 _MaskBase = Model
@@ -470,15 +465,14 @@ class Mask(_MaskBase):
     
         mask = n.zeros_like(mask_tif)  #initialize mask to zeros
         mask[terrain] = 1
-    
-        self.input_model = mask
+        k = self.downscale
+        self.input_model = downscale_local_mean(mask,(k,k))
         
     def show_input_model(self,):
         """
         show the input mask
         """
-        small_img = downscale_local_mean(self.input_model,(25,25))
-        self.image_template(small_img, "Terrain_mask",'binary', 0, 1)
+        self.image_template(self.input_model, "Terrain_mask",'binary', 0, 1)
 
         
 #------------------------------------------------------------------------------# 
@@ -486,8 +480,8 @@ class Mask(_MaskBase):
 _AggregateModelBase = Model
 class AggregateModel(_AggregateModelBase):
     """
-    Aggregate models 
-    - "fix_param" will keep parameters fixed during the fitting process. It 
+    This class is for combining the input models 
+    - "fix_param" will keep parameters fixed during the fitting process. It
       takes the form {model:[fixed params]}
     """
 
@@ -499,6 +493,9 @@ class AggregateModel(_AggregateModelBase):
         self.fix_param = kwargs.get('fix_param',{}) #{model:[fixed params]}
 
     def get_parameters(self, parameter_list=None):
+        """
+        Get the values of floating parameters from all the input models. 
+        """
         assert parameter_list is None
 
         all_parms = []
@@ -554,43 +551,47 @@ class AggregateModel(_AggregateModelBase):
         """
         show the observed model with the current parameters
         """
-        img = downscale_local_mean(self.compute_observed_model(unit='mag'),
-                                   (25,25))
-        self.image_template(img, "Natural_sky_model", 'Blues', 19, 22)
+        img = self.compute_observed_model(unit='mag')
+        self.image_template(img, "Natural_sky_model")
        
 #------------------------------------------------------------------------------#
 
 A = Airglow()
 print(A.parameters)
-#A.show_input_model()
-#A.show_observed_model()
+A.show_input_model()
+A.show_observed_model()
 
 D = ADL()
 print(D.parameters)
-#D.show_input_model()
-#D.show_observed_model()
+D.show_input_model()
+D.show_observed_model()
 
 Z = Zodiacal()
 print(Z.parameters)
-#Z.show_input_model()
-#Z.show_observed_model()
+Z.show_input_model()
+Z.show_observed_model()
 
 G = Galactic()
 print(G.parameters)
-#G.show_input_model()
-#G.show_observed_model()
+G.show_input_model()
+G.show_observed_model()
 
-M = Mask()
-print(M.parameters)
-#M.show_input_model()
+K = Mask()
+print(K.parameters)
+K.show_input_model()
 
-T = AggregateModel([G,Z,A,D])
-T.show_observed_model()
+M = AggregateModel([G,Z,A,D])
+M.show_observed_model()
+
+S = get_panoramic_raster(M.dnight, M.set, M.filter, 'median')
+D_nl = mag_to_nl_liwei(S) - M.compute_observed_model()
+D_mag = nl_to_mag(D_nl)
+M.image_template(D_mag, "Difference")
 
 #small_mask = downscale_local_mean(M.input_model,(25,25))
-#small_img = nl_to_mag(downscale_local_mean(Img,(25,25)))
+#small_img = downscale_local_mean(S-M.compute_observed_model(),(25,25))
 #masked_img = n.ma.masked_array(small_img, mask=small_mask)
-#plt.imshow(small_img, cmap='binary')
+#plt.imshow(S,interpolation='nearest')
 #plt.imshow(masked_img, cmap='binary')
 #cbar = plt.colorbar()
 #plt.show(block=False)
