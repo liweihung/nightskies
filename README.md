@@ -19,8 +19,6 @@
   - [9. Full-resolution Mosaic](#9-galactic-and-zodiacal-coordinates)
   - [10. Median-filtered Mosaic](#10-galactic-and-zodiacal-coordinates)
 
-- [Installation](#installation)
-  - [Dependencies](#dependencies)
   - [Public domain](#public-domain)
 
 <!-- /MarkdownTOC -->
@@ -172,10 +170,6 @@ This script makes the whole sky mosaic from the median filtered images according
 #### Methods: 
 Same as the method section under [_“full-resolution mosaic”_](### Full-resolution Mosaic)  with the exception of using median filtered images as the input. 
 
-
-## Installation
-
-### Dependencies
 
 ### Public domain
 
