@@ -65,7 +65,7 @@ def solve(fn):
         f = fits.open(fn,uint=False)[0]
         f.data[630:] = 0.
         fn = fn[:-4]+'c.fit'
-        f.writeto(fn, clobber=True)
+        f.writeto(fn, overwrite=True)
     
     p.attachFits(fn)
     p.ArcsecPerPixelHoriz = 96
@@ -93,7 +93,7 @@ def solve(fn):
         l = len(f.data)/2
         f.data = f.data[l-100:l+100,l-100:l+100]
         fn = fn[:-4]+'s.fit'
-        f.writeto(fn, clobber=True)
+        f.writeto(fn, overwrite=True)
         
         p.DetachFITS()
         p.attachFits(fn)
@@ -127,7 +127,7 @@ def solve(fn):
         data = f[0].data.copy()
         f.close()
         header = fits.open(fn)[0].header
-        fits.writeto(fn_orig, data, header=header, clobber=True)
+        fits.writeto(fn_orig, data, header=header, overwrite=True)
         
     return message
 

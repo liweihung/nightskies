@@ -54,7 +54,7 @@ def FilterImage(arg):
     outTiff = 'tiff/median_%s.tif'%fn[-9:-4] #output file
     D = fits.open(fn)[0]
     D.data = median_filter(D.data, footprint=mask)
-    D.writeto(fn[:-9]+outFits, clobber=True)
+    D.writeto(fn[:-9]+outFits, overwrite=True)
     T.OpenFile(fn[:-9]+outFits)
     T.SaveFile(fn[:-9]+outTiff,5,False,1,0)
     T.Close

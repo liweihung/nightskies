@@ -80,15 +80,15 @@ def reducev(dnight, sets, flatname, curve):
             biascrop = biasrawd[486:536,486:536]
             dark.append(darki)
             bias.append(biasrawd)
-            fits.writeto(calsetp+'thermal%i.fit'%i, darki, clobber=True)
-            fits.writeto(rawsetp+'biasc%i.fit'%i, biascrop, clobber=True,
+            fits.writeto(calsetp+'thermal%i.fit'%i, darki, overwrite=True)
+            fits.writeto(rawsetp+'biasc%i.fit'%i, biascrop, overwrite=True,
                          header=biasraw.header)
         
         #average combine to generate the master thermal and bias
         corthermal = n.average(dark,axis=0)
         combias = n.average(bias,axis=0)
-        fits.writeto(calsetp+'corthermal.fit', corthermal, clobber=True)
-        fits.writeto(calsetp+'combias.fit', combias, clobber=True)
+        fits.writeto(calsetp+'corthermal.fit', corthermal, overwrite=True)
+        fits.writeto(calsetp+'combias.fit', combias, overwrite=True)
         
         #measure the bias drift for each frames
         nb = len(glob(rawsetp+'biasc*.fit'))
@@ -125,7 +125,7 @@ def reducev(dnight, sets, flatname, curve):
             f.data -= corthermal                  # subtract dark
             f.data /= flat                        # divide by flat
             f.header['IMAGETYP'] = 'CALIB_M'
-            f.writeto(calsetp+file[i][len(rawsetp):], clobber=True)
+            f.writeto(calsetp+file[i][len(rawsetp):], overwrite=True)
             T.OpenFile(calsetp+file[i][len(rawsetp):])
             T.SaveFile(calsetp+'tiff/'+file[i][len(rawsetp):-4]+'.tif',5,False,1,0)
             T.Close            #imsave(calsetp+'tiff/'+file[i][len(rawsetp):-4]+'.tif', f.data)
@@ -176,7 +176,7 @@ def reduceb(dnight, sets, flatname, curve):
             f.data -= corthermal                  # subtract dark
             f.data /= flat                        # divide by flat
             f.header['IMAGETYP'] = 'CALIB_M'
-            f.writeto(calsetp+file[i][len(rawsetp):-5]+'.fit', clobber=True)
+            f.writeto(calsetp+file[i][len(rawsetp):-5]+'.fit', overwrite=True)
             T.OpenFile(calsetp+file[i][len(rawsetp):-5]+'.fit')
             T.SaveFile(calsetp+'tiff/'+file[i][len(rawsetp):-5]+'.tif',5,False,1,0)
             T.Close

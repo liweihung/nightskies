@@ -53,7 +53,7 @@ def bar(dnight, nset):
     fig = plt.figure('Progress Bar',figsize=((len(pname)+hmerge+2)/1.5,nrow*0.6))
     plt.clf()
     ax = fig.add_subplot(111)
-    ax.set_axis_bgcolor('k')
+    ax.set_facecolor('k')
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
     
