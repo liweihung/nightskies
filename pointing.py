@@ -40,6 +40,7 @@ from win32com.client import Dispatch
 import pdb
 import numpy as n
 import matplotlib.pyplot as plt
+import os
 
 # Local Source
 import filepath  
@@ -163,7 +164,13 @@ def pointing_err(dnight, sets):
         solved=[]; notsolved=[]
         True_AZ=[]; True_ALT=[]; Input_AZ=[]; Input_ALT=[]        
         for fn in iglob(calsetp+'ib???.fit'):
-            H = fits.open(fn)[0].header
+            fns = fn[:-4]+'s'+fn[-4:]
+            if os.path.exists(fns):
+                H = fits.open(fns)[0].header
+                fnsolved = fns
+            else:
+                H = fits.open(fn)[0].header
+                fnsolved = fn
             
             #calculating the pointing error only if the plate is solved
             if 'PLTSOLVD' not in H or H['PLTSOLVD']==False: 
@@ -171,7 +178,7 @@ def pointing_err(dnight, sets):
                 continue
             
             solved.append(int(fn[-7:-4]))
-            p.attachFits(fn)
+            p.attachFits(fnsolved)
             star.RightAscension = p.RightAscension
             star.Declination = p.Declination
             
