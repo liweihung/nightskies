@@ -30,6 +30,7 @@
 ## Purpose
 
 ## Required Software and Install Procedures
+Note: Astropy should come with Anaconda. If your astropy is too old (< version 1.3), update the package through the command line in Anaconda Prompt >conda update astropy
 
 ## Preparing Data For Processing
 
