@@ -30,8 +30,9 @@
 ## Purpose
 
 ## Required Software and Install Procedures
-Note: Astropy should come with Anaconda. If your astropy is too old (< version 1.3), update the package through the command line in Anaconda Prompt >conda update astropy
-
+Note: Astropy and matplotlib should come with Anaconda. 
+  - If your astropy is too old (< version 1.3), update the package through the command line in Anaconda Prompt >conda update astropy
+  - If your matplotlib is too old, update the package through the command line in Anaconda Prompt >conda update matplotlib to the most up-to-date version (as of 05/15/2018, it's version 2.2.2)
 ## Preparing Data For Processing
 
 ## Processing Flow Chart
