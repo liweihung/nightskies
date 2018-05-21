@@ -52,11 +52,11 @@ This script performs basic image reduction, including corrections for bias, dark
 #### Methods
 In the beginning of data collection, for each data set, 5 dark (**D**) images showing the thermal noise and 5 bias (**B**) images showing the read noise were taken alternately for calibration purposes. Each dark image is then processed here as following to obtain the calibrated dark (**D<sub>c</sub>**) image:  
 
-<img src="https://github.com/liweihung/nightskies/blob/master/static/D_c.png" width="350">
+<img src="https://github.com/liweihung/nightskies/blob/master/static/D_c.png" width="320">
 
 where **L** is the linearity curve for correcting the detector response. Then, the script creates the master dark image **D<sub>m</sub>** through averaging the 5 calibrated darks and the master bias image **B<sub>m</sub>** through averaging the 5 biases. While collecting scientific images, an additional 50 x 50 pixels small bias image was taken immediately after each scientific image. We use these small bias images to track the bias drift over the course of the observation. We compute the bias drift **B<sub>d</sub>** by subtracting the average value of the central 50 x 50 pixels of the master bias from the average pixel value of each one of the small bias images. This measured bias drift information is saved in _biasdrift.txt_ and _biasdrift.png_ in the calibdata folder. To obtain calibrated scientific images **S<sub>c</sub>**, we use the following equation:
 
-<img src="https://github.com/liweihung/nightskies/blob/master/static/S_c.png" width="400">
+<img src="https://github.com/liweihung/nightskies/blob/master/static/S_c.png" width="350">
  
 where **S** is the raw scientific image and **F** is the flat image taken and processed in the lab. All of the terms in the above equation are 2D image arrays except for **B<sub>d</sub>** and **L** which are single-value scale factors. This script outputs calibrated science images in both _fits_ and _tiff_ formats. 
 
@@ -156,7 +156,7 @@ This script makes the whole sky mosaic from the full resolution images according
 #### Methods: 
 This script reads in the full resolution _tiff_ files and the pointing error file. It also uses some premade raster templates from the raster folder. We use arcpy (ArcGIS) to manipulate the images with projection, removal of distortion, clipping, and mosaic. Note that the mosaic raster list must start with an image with maximum pixel value being greater than 256 to avoid _“no data”_ in the final mosaic. We then read in the zeropoint from the input file and use it to convert the mosaic from the raw unit in data number (**DN**) to calibrated unit in magnitudes per square arcsecond using the following equation: 
 
-<img src="https://github.com/liweihung/nightskies/blob/master/static/M_c.png" width="370">
+<img src="https://github.com/liweihung/nightskies/blob/master/static/M_cZ.png" width="400">
 
 where **M<sub>c</sub>** is the mosaic in calibrated unit of magnitudes per square arc second, **Z** is the instrumental zeropoint magnitude, Mr  is the mosaic in raw unit of **DN**, **t** is the exposure time, and **P** is the plate scale in arcsecond per pixel. The photometrically calibrated raster and layer files are stored in the Griddata folder.
 
