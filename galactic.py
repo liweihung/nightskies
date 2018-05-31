@@ -123,7 +123,7 @@ def mosaic(dnight, sets):
         
         #read in the galactic coordinates from coordinates_%s.txt
         file = filepath.calibdata+dnight+'/coordinates_%s.txt'%s[0]
-        Gal_ang, Gal_l, Gal_b = n.loadtxt(file,usecols=(1,2,3)).T*[[-1],[1],[1]]
+        Gal_ang, Gal_l, Gal_b = n.loadtxt(file,usecols=(1,2,3)).T
         
         #read in the registered images coordinates
         file = filepath.calibdata+dnight+'/pointerr_%s.txt' %s[0]

@@ -55,7 +55,7 @@ geogcs = "GEOGCS['GCS_Sphere_EMEP',\
 #-----------------------------------------------------------------------------#
 def zod_envelope(lon,lat):
     if abs(lat)<71:
-        #expension angle
+        #expansion angle
         if abs(lat)<55: ang = 22/n.cos(n.deg2rad(lat))
         else: ang = 89
         lon = (lon+90) % 180 - 90
@@ -118,7 +118,7 @@ def mosaic(dnight, sets):
         
         #read in the zodiacal coordinates from coordinates_%s.txt
         file = filepath.calibdata+dnight+'/coordinates_%s.txt'%s[0]
-        Ecl_ang, Ecl_l, Ecl_b = n.loadtxt(file,usecols=(4,5,6)).T*[[-1],[1],[1]]
+        Ecl_ang, Ecl_l, Ecl_b = n.loadtxt(file,usecols=(4,5,6)).T
         
         #read in the registered images coordinates
         file = filepath.calibdata+dnight+'/pointerr_%s.txt' %s[0]
@@ -184,5 +184,5 @@ def mosaic(dnight, sets):
 
     
 if __name__ == "__main__":
-    #mosaic('FCNA160803', ['1st',])
+    mosaic('FCNA160803', ['1st',])
     pass

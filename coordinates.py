@@ -100,7 +100,7 @@ def galactic_ecliptic_coords(dnight, sets):
             
             if ('PLTSOLVD' in H.keys()) and H['PLTSOLVD']:   #if plate is solved
                 b = bearing_angle(c.dec.degree, -c.ra.degree, *galactic_pole)
-                galactic_angle = -((b+H['PA'])%360)
+                galactic_angle = (b+H['PA'])%360
             else: 
                 star.RightAscension = galactic_pole[1]/15  #ecliptic N pole [hr]
                 star.Declination = galactic_pole[0]       #ecliptic N pole [deg]
@@ -108,7 +108,7 @@ def galactic_ecliptic_coords(dnight, sets):
                 ct.RightAscension = StarTopo.RightAscension*15
                 ct.Declination = StarTopo.Declination 
                 b_in = [Obs_ALT[w][0], Obs_AZ[w][0], ct.Elevation, -ct.Azimuth]
-                galactic_angle = -bearing_angle(*b_in)
+                galactic_angle = bearing_angle(*b_in)
 
             #------------- Calculate the ecliptic coordinates
             star.RightAscension = ecliptic_pole[1]         #ecliptic N pole [hr]
