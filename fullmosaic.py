@@ -170,7 +170,13 @@ def mosaic(dnight, sets, filter):
         #convert to magnitudes per square arc second
         print "Converting the mosaic to mag per squard arcsec"
         psa = 2.5*n.log10((platescale[int(s[0])-1]*60)**2) # platescale adjustment
-        skytopomags = zeropoint[int(s[0])-1] + psa - 2.5*arcpy.sa.Log10(arcpy.sa.Raster(gridsetp+'skytopo')/exptime[0])
+        
+        # break the arcpy calculations into a few steps
+        stm1 = arcpy.sa.raster(gridsetp + skytopo)
+        stm2 = arcpy.sa.log10(stm1)
+        stm3 = 2.5 * stm2 / esptime[0]
+        
+        skytopomags = zeropoint[int(s[0])-1] + psa - stm3
         
         #save mags mosaic to disk
         skytopomags.save(gridsetp+'skytopomags')
