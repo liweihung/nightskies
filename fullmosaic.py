@@ -160,20 +160,24 @@ def mosaic(dnight, sets, filter):
         R1 = ';'.join(['fcib%03d' %i for i in range(mstart,47)])
         R2 = ';'.join(['fcib%03d' %i for i in range(1,mstart)])
         R = R1+';'+R2
-        
+
         #mosaic to topocentric coordinate image; save in Griddata\
         print "Mosaicking into all sky full-resolution image"
         arcpy.MosaicToNewRaster_management(R, gridsetp, 'skytopo', geogcs, 
                                         "32_BIT_FLOAT", "0.0261", "1", "BLEND", 
                                         "FIRST")
         
+
         #convert to magnitudes per square arc second
         print "Converting the mosaic to mag per squard arcsec"
         psa = 2.5*n.log10((platescale[int(s[0])-1]*60)**2) # platescale adjustment
-        skytopomags = zeropoint[int(s[0])-1] + psa - 2.5*arcpy.sa.Log10(arcpy.sa.Raster(gridsetp+'skytopo')/exptime[0])
-        
+        stm1 = arcpy.sa.Raster(gridsetp + os.sep + 'skytopo')
+        stm2 = arcpy.sa.Log10(stm1)
+        stm3 = 2.5 * stm2 / exptime[0]
+        skytopomags = zeropoint[int(s[0])-1] + psa - stm3
+
         #save mags mosaic to disk
-        skytopomags.save(gridsetp+'skytopomags')
+        skytopomags.save(gridsetp + os.sep + 'skytopomags')
     
         print "Creating layer files for full-resolution mosaic"
         layerfile = filepath.griddata+dnight+'/skytopomags%s%s.lyr' %(f[filter],s[0])
@@ -190,5 +194,5 @@ def mosaic(dnight, sets, filter):
 
     
 if __name__ == "__main__":
-    #mosaic('FCNA160803', ['1st',],'B')
+    mosaic('FCNA160803', ['1st',],'V')
     pass
