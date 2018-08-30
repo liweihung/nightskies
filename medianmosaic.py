@@ -26,8 +26,10 @@
 #	Li-Wei Hung -- Cleaned and improved the code
 #
 #-----------------------------------------------------------------------------#
+from astropy.io import fits
 from glob import glob, iglob
 from scipy.misc import imread
+from skimage.transform import downscale_local_mean
 
 import arcpy
 import pdb
@@ -154,7 +156,7 @@ def mosaic(dnight, sets, filter):
             #clip to image boundary
             rectangle = clip_envelope(Obs_AZ, Obs_ALT, w)
             arcpy.Clip_management("wib%03d.tif"%v, rectangle, "cib%03d"%v)
-            
+        
         #mosaic raster list must start with an image with max pixel value > 256
         v=1; mstart=1
         while v < (len(Obs_AZ)+1):
@@ -200,6 +202,14 @@ def mosaic(dnight, sets, filter):
                                   'FALSE')
         lyrFile.save()
         
+        #Downscale the raster and save it as a fits file
+        file = filepath.griddata+dnight+'/S_0%s/%smedian/skybrightmags' %(s[0],F[filter])
+        arcpy_raster = arcpy.sa.Raster(file)  
+        A = arcpy.RasterToNumPyArray(arcpy_raster, "#", "#", "#", -9999)
+        A_small = downscale_local_mean(A[:1800,:7200],(25,25)) #72x288
+        fname = filepath.griddata+dnight+'/skybrightmags%s%s.fits'%(f[filter],s[0])
+        fits.writeto(fname, A_small, overwrite=True)
+        
     #create mask.tif for horizon masking in the later process
     mask = filepath.griddata+dnight+'/mask.tif'
     if not os.path.isfile(mask):
@@ -208,5 +218,5 @@ def mosaic(dnight, sets, filter):
 
     
 if __name__ == "__main__":
-    #mosaic('FCNA160803', ['1st',],'V')
+    mosaic('FCNA160803', ['1st',],'V')
     pass

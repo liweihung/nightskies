@@ -24,8 +24,9 @@
 #	Li-Wei Hung -- Cleaned and improved the code
 #
 #-----------------------------------------------------------------------------#
-
+from astropy.io import fits
 from glob import glob, iglob
+from skimage.transform import downscale_local_mean
 
 import arcpy
 #import pdb
@@ -162,7 +163,7 @@ def mosaic(dnight, sets):
             #clip to image boundary
             rectangle = clip_envelope(Obs_AZ, Obs_ALT, w)
             arcpy.Clip_management("gal%02d.tif"%v, rectangle, "gali%02d"%v)
-    
+        
         #Mosaic to topocentric coordinate model; save in Griddata\
         print "Mosaicking into all sky galactic model"
         R = ';'.join(['gali%02d' %i for i in range(1,47)])
@@ -182,9 +183,17 @@ def mosaic(dnight, sets):
         lyrFile.replaceDataSource(gridsetp,'RASTER_WORKSPACE','galtopmags',
                                   'FALSE')
         lyrFile.save()
-    
+        
+        #Downscale the raster and save it as a fits file
+        file = filepath.griddata+dnight+"/S_0"+s[0]+"/gal/galtopmags"
+        arcpy_raster = arcpy.sa.Raster(file)  
+        A = arcpy.RasterToNumPyArray(arcpy_raster, "#", "#", "#", -9999)
+        A_small = downscale_local_mean(A[:1800,:7200],(25,25)) #72x288
+        fname = filepath.griddata+dnight+'/galtopmags%s.fits' %s[0]
+        fits.writeto(fname, A_small, overwrite=True)
+
 if __name__ == "__main__":
-    #mosaic('FCNA160803', ['1st',])
+    mosaic('FCNA160803', ['1st',])
     pass
 
 

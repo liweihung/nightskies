@@ -24,7 +24,9 @@
 #	Li-Wei Hung -- Cleaned and improved the code
 #
 #-----------------------------------------------------------------------------#
+from astropy.io import fits
 from glob import glob, iglob
+from skimage.transform import downscale_local_mean
 
 import arcpy
 import pdb
@@ -157,7 +159,7 @@ def mosaic(dnight, sets):
             #clip to image boundary
             rectangle = clip_envelope(Obs_AZ, Obs_ALT, w)
             arcpy.Clip_management("zod%02d.tif"%v, rectangle, "zodi%02d"%v)
-
+            
         #Mosaic to topocentric coordinate model; save in Griddata\
         print "Mosaicking into all sky zodiacal model"
         R = ';'.join(['zodi%02d' %i for i in range(1,47)])
@@ -181,6 +183,14 @@ def mosaic(dnight, sets):
         lyrFile.replaceDataSource(gridsetp,'RASTER_WORKSPACE','zodtopmags',
                                   'FALSE')
         lyrFile.save()
+        
+        #Downscale the raster and save it as a fits file
+        file = filepath.griddata+dnight+"/S_0"+s[0]+"/zod/zodtopmags"
+        arcpy_raster = arcpy.sa.Raster(file)  
+        A = arcpy.RasterToNumPyArray(arcpy_raster, "#", "#", "#", -9999)
+        A_small = downscale_local_mean(A[:1800,:7200],(25,25)) #72x288
+        fname = filepath.griddata+dnight+'/zodtopmags%s.fits' %s[0]
+        fits.writeto(fname, A_small, overwrite=True)
 
     
 if __name__ == "__main__":

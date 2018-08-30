@@ -109,7 +109,32 @@ def get_panoramic_raster(dnight, set, band, raster, k=25):
     A_small = downscale_local_mean(A,(k,k))
     return A_small
 
+#read in downscaled models and data from the fits images
+def get_downscaled_image(dnight, set, band, image):
+    """    
+    This function reads in a downscaled fits image. Only area above the horizon 
+    is preserved.
+    
+    Arguments:
+    dnight -- data night; i.e. 'FCNA160803'
+    set -- data set; i.e. 1 
+    band -- filter; either 'V' or 'B'
+    image -- input image; either 'gal', 'zod', or 'median' but not 'fullres'
 
+    Returns:
+    A_small -- a 2D Python array of shape [72,288]
+    """
+    filter = {'V':"",'B':"/B"};
+    f = {'V':'', 'B':'b'}
+    path = {'gal':"/galtopmags%s.fits" %set,
+            'zod':"/zodtopmags%s.fits" %set,
+            'median':filter[band]+"/skybrightmags%s%s.fits"%(f[band],set)}
+            
+    file = filepath.griddata+dnight+path[image]
+    A_small = fits.open(file,unit=False)[0].data
+    return A_small
+    
+    
 #------------------------------------------------------------------------------#
 #-------------------    Sky Brightness Model Components     -------------------#
 #------------------------------------------------------------------------------#
@@ -403,7 +428,7 @@ class Galactic(_GalacticModelBase):
         set of data. 
         """
         d, s, f = self.dnight, self.set, self.filter
-        self.input_model = get_panoramic_raster(d, s, f, 'gal')
+        self.input_model = get_downscaled_image(d, s, f, 'gal')
         
     def compute_observed_model(self,unit='nl'):
         """
@@ -448,7 +473,7 @@ class Zodiacal(_ZodiacalModelBase):
         set of data. 
         """
         d, s, f = self.dnight, self.set, self.filter
-        self.input_model = get_panoramic_raster(d, s, f, 'zod')
+        self.input_model = get_downscaled_image(d, s, f, 'zod')
         
     def compute_observed_model(self, unit='nl'):
         """
@@ -752,10 +777,10 @@ M = AggregateModel([G,Z,A,D],*Pa,**Pk)
 #M.show_observed_model()
 
 
-S = get_panoramic_raster(K.dnight, K.set, K.filter, 'median')
+S = get_downscaled_image(K.dnight, K.set, K.filter, 'median')
 
 C = ModelComparator(M, image=S)
-#C.showimg()
+C.showimg()
 #K.image_template(S, "Median Filtered Data")
 '''
 D_nl = mag_to_nl_liwei(S) - M.compute_observed_model()
