@@ -739,7 +739,7 @@ set = 1               #data set
 filter = 'V'          #filter used
 
 Pa = [dnight, set, filter]
-Pk = {'pixscale':0.05, 
+Pk = {'pixscale':0.05, #unit?
       'downscale':25, 
       'za_min':0., 
       'za_max':90.}
@@ -764,14 +764,14 @@ print('ADL: ', D.parameters)
 G = Galactic(*Pa, **Pk)
 #G.parameters['e'] = 1.
 print('Galactic: ', G.parameters)
-#G.show_input_model()
-#G.show_observed_model()
+G.show_input_model()
+G.show_observed_model()
 
 Z = Zodiacal(*Pa, **Pk)
 #Z.parameters['e'] = 0.1
 print('Zodiacal: ', Z.parameters)
-#Z.show_input_model()
-#Z.show_observed_model()
+Z.show_input_model()
+Z.show_observed_model()
 
 M = AggregateModel([G,Z,A,D],*Pa,**Pk)
 #M.show_observed_model()
