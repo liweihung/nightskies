@@ -28,6 +28,8 @@ from astropy.io import fits
 from glob import glob, iglob
 from skimage.transform import downscale_local_mean
 
+import archook
+archook.get_arcpy()
 import arcpy
 #import pdb
 import numpy as n

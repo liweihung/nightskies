@@ -28,6 +28,8 @@
 from glob import glob, iglob
 from scipy.misc import imread
 
+import archook
+archook.get_arcpy()
 import arcpy
 import pdb
 import numpy as n

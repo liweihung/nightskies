@@ -117,9 +117,9 @@ def reducev(dnight, sets, flatname, curve):
         file = n.hstack((rawsetp+'zenith1.fit',
                          glob(rawsetp+'ib???.fit'),
                          rawsetp+'zenith2.fit'))
-            
+        
         for i in range(len(file)):
-            f = fits.open(file[i],uint=False)[0]  # science image 
+            f = fits.open(file[i],uint=False)[0]  # science image
             f.data -= combias+biasdrift[i]        # subtract drift-corrected bias
             f.data *= n.interp(f.data,xp,fp)      # correct for linearity response
             f.data -= corthermal                  # subtract dark

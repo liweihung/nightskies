@@ -312,6 +312,15 @@ if __name__ == '__main__':
         K1 = (Dataset[i],sets,Filter) 
         K2 = (Dataset[i],sets)  
 
+        from process import pointing_error
+        from process import fit_zeropoint
+        from process import apply_filter
+        from process import compute_coord
+        from process import mosaic_galactic
+        from process import mosaic_zodiacal
+        from process import mosaic_full
+        from process import mosaic_median
+		
         q2=Queue(); Q2=(q2,); p2=Process(target=pointing_error,args=K2+Q2)
         q3=Queue(); Q3=(q3,); p3=Process(target=fit_zeropoint,args=K1+Q3)
         q4=Queue(); Q4=(q4,); p4=Process(target=apply_filter,args=K1+Q4)
@@ -322,7 +331,7 @@ if __name__ == '__main__':
         q9=Queue(); Q9=(q9,); p9=Process(target=mosaic_median,args=K1+Q9)
         
         reduce_images(*K0)                            #image reduction   
-        register_coord(*K1)                           #pointing 
+        register_coord(*K1)                           #pointing
         p2.start(); update_progressbar(2,i)           #pointing error
         p3.start(); update_progressbar(3,i)           #zeropoint & extinction
         p4.start(); update_progressbar(4,i)           #median filter
